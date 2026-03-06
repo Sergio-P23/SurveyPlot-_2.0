@@ -1,0 +1,103 @@
+// Contenedor principal
+.main-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding-top: 10vh;
+}
+
+// Tipografía basada en tu código
+.text-2xl {
+  font-size: 1.5rem;
+  line-height: 1.5;
+}
+.text-lg {
+  font-size: 1.125rem;
+}
+.font-medium {
+  font-weight: 500;
+}
+.text-muted {
+  color: oklch(0.708 0 0);
+  font-size: 0.95rem;
+}
+.text-accent {
+  color: #00d2ff;
+}
+
+.header-minimal {
+  text-align: center;
+  margin-bottom: 3rem;
+
+  .icon-box {
+    font-size: 2rem;
+    color: var(--primary-custom);
+    margin-bottom: 0.5rem;
+  }
+}
+
+// Estilo de Tarjeta "Shadcn"
+.cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  width: 100%;
+  max-width: 1100px;
+}
+
+.custom-card {
+  background: var(--background-custom);
+  border: 1px solid var(--border-custom); // Basado en tu variable --border
+  border-radius: 0.625rem; // Tu --radius
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: oklch(0.205 0 0); // Un poco más claro al hover
+    border-color: oklch(0.439 0 0); // Tu --ring
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+
+    ion-icon {
+      font-size: 1.5rem;
+    }
+  }
+
+  .card-body {
+    margin-bottom: 1.5rem;
+    flex-grow: 1;
+  }
+}
+
+// Botón estilo Ghost
+.btn-ghost {
+  background: transparent;
+  color: var(--foreground-custom);
+  border: none;
+  text-align: left;
+  padding: 0;
+  font-weight: 500;
+  cursor: pointer;
+  width: fit-content;
+
+  &:hover {
+    color: #00d2ff;
+    text-decoration: underline;
+  }
+}
+
+.footer-text {
+  margin-top: 4rem;
+  padding-bottom: 2rem;
+  color: oklch(0.439 0 0);
+  font-size: 0.75rem;
+}
