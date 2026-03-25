@@ -1,44 +1,87 @@
 // Contenedor principal
+a {
+  text-decoration: none;
+}
+
 .main-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-height: 100%;
-  padding-top: 10vh;
+  // justify-content: center;
+  min-height: 100vh;
+  padding-top: 30px;
 }
 
-// Tipografía basada en tu código
-.text-2xl {
-  font-size: 1.5rem;
-  line-height: 1.5;
-}
-.text-lg {
-  font-size: 1.125rem;
-}
-.font-medium {
-  font-weight: 500;
-}
-.text-muted {
-  color: oklch(0.708 0 0);
-  font-size: 0.95rem;
-}
-.text-accent {
-  color: #00d2ff;
+// Fuente - Titulos principales
+.title-text {
+  font-family: "Roboto", sans-serif;
+  font-weight: 900; /* Peso grueso */
+  font-size: 60px; /* Ajusta según tu necesidad */
+  letter-spacing: -0.5px; /* Esto es clave para que se vea igual a la foto */
+  color: rgb(231, 246, 254); /* El tono azulado muy claro de la imagen */
+  margin: 0px;
 }
 
+// Fuente - Subtitulos
+.subtitle-text {
+  font-family: "Roboto", sans-serif;
+  font-weight: 700; /* Peso grueso */
+  letter-spacing: 0.5px; /* Esto es clave para que se vea igual a la foto */
+  color: rgb(200, 205, 210); /* El tono azulado muy claro de la imagen */
+  font-size: 1.2rem;
+  margin: 0%;
+}
+
+.card-title {
+  font-family: "Roboto", sans-serif;
+  letter-spacing: -1px; /* Esto es clave para que se vea igual a la foto */
+  color: rgb(200, 205, 210); /* El tono azulado muy claro de la imagen */
+  font-size: 0.1px;
+  margin: 0%;
+}
+
+.card-text {
+  font-family: "Roboto", sans-serif;
+  letter-spacing: 0.9px; /* Esto es clave para que se vea igual a la foto */
+  color: rgb(148, 163, 184); /* El tono azulado muy claro de la imagen */
+  font-size: 1rem;
+  margin: 0%;
+}
+// Estilos para el header
 .header-minimal {
-  text-align: center;
-  margin-bottom: 3rem;
+  text-align: center; // Esto centra el texto y elementos inline
+  // margin-bottom: 19px;
 
   .icon-box {
-    font-size: 2rem;
     color: var(--primary-custom);
-    margin-bottom: 0.5rem;
+    // margin-bottom: 0.5rem;
+
+    // CENTRADO DE LA CAJA:
+    margin-left: auto;
+    margin-right: auto;
+
+    // Tamaño de la caja en móvil
+    width: 100px;
+    height: 100px;
+
+    @media (min-width: 768px) {
+      width: 160px; // Se agranda en Web
+      height: 160px;
+    }
+
+    // Asegura que el contenido llene la caja
+    img,
+    svg,
+    ion-icon {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
   }
 }
 
-// Estilo de Tarjeta "Shadcn"
+// Estilo de Tarjeta
 .cards-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -48,17 +91,69 @@
 }
 
 .custom-card {
-  background: var(--background-custom);
-  border: 1px solid var(--border-custom); // Basado en tu variable --border
-  border-radius: 0.625rem; // Tu --radius
-  padding: 1.5rem;
+  /* Fondo semi-transparente */
+  background: rgba(255, 255, 255, 0.03);
+
+  /* Efecto de desenfoque (Glassmorphism) */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  padding: 32px;
   display: flex;
   flex-direction: column;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
 
   &:hover {
-    background: oklch(0.205 0 0); // Un poco más claro al hover
-    border-color: oklch(0.439 0 0); // Tu --ring
+    background: rgba(0, 208, 255, 0.036);
+    border-color: rgba(0, 208, 255, 0.206);
+    transition: all 0.3s ease;
+
+    /* Sombra de brillo azul que "resalta" la card */
+    box-shadow:
+      0 0 0 1px rgba(0, 208, 255, 0.052),
+      //borde card
+      0 8px 32px rgba(0, 208, 255, 0.063),
+      // sombra azul suave
+      0 20px 48px rgba(0, 0, 0, 0.522); // sombra negra para profundidad
+
+    /* Elevación más notable */
+    transform: translateY(-900px);
+
+    /* Texto del body se pone más blanco */
+    .card-body {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* El link "Acceder" también se ilumina */
+    a,
+    .acceder {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* El ícono también gana brillo */
+    &.card-individual ion-icon {
+      filter: drop-shadow(0 0 6px rgba(0, 208, 255, 0.828));
+    }
+
+    &.card-consolidado ion-icon {
+      filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.828));
+    }
+
+    &.card-analisis ion-icon {
+      filter: drop-shadow(0 0 6px rgba(0, 214, 143, 0.828));
+    }
+
+    .a-ghost {
+      transform: scale(1.1); // crece un poco más
+      font-weight: 400;
+    }
+
+    .a-ghost .arrow {
+      transform: scale(1) translateX(6px);
+      font-weight: 400;
+    }
   }
 
   .card-header {
@@ -78,10 +173,71 @@
   }
 }
 
+// box iconos cards
+.box-icon-individual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(6, 79, 121, 0.647);
+  background: rgba(28, 60, 97, 0.811);
+  margin-bottom: 15px; /* Margen inferior para separarlo del título */
+}
+
+.box-icon-consolidado {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(199, 74, 170, 0.592);
+  background: rgba(54, 46, 86, 0.842);
+  margin-bottom: 15px; /* Margen inferior para separarlo del título */
+}
+
+.box-icon-analisis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(10, 81, 72, 0.643);
+  background: rgba(15, 48, 52, 0.639);
+  margin-bottom: 15px; /* Margen inferior para separarlo del título */
+}
+
+.text-accent-individual {
+  color: rgb(
+    74,
+    222,
+    178
+  ) !important; /* El cian brillante que identificamos antes */
+  font-size: 30px; /* Opcional: para cambiar el tamaño */
+}
+
+.text-accent-consolidado {
+  color: rgb(
+    175,
+    137,
+    255
+  ) !important; /* El cian brillante que identificamos antes */
+  font-size: 24px; /* Opcional: para cambiar el tamaño */
+}
+
+.text-accent-analisis {
+  color: rgb(
+    40,
+    166,
+    105
+  ) !important; /* El cian brillante que identificamos antes */
+  font-size: 24px; /* Opcional: para cambiar el tamaño */
+}
+
 // Botón estilo Ghost
-.btn-ghost {
+.a-ghost {
   background: transparent;
-  color: var(--foreground-custom);
+  color: rgb(155, 161, 186);
   border: none;
   text-align: left;
   padding: 0;
@@ -89,15 +245,22 @@
   cursor: pointer;
   width: fit-content;
 
+  display: inline-block;
+  transform-origin: left center; // crece hacia la derecha
+  transition: transform 0.3s ease;
+
+  .arrow {
+    display: inline-block;
+    transition: transform 0.3s ease;
+  }
+
   &:hover {
     color: #00d2ff;
-    text-decoration: underline;
   }
 }
 
 .footer-text {
-  margin-top: 4rem;
-  padding-bottom: 2rem;
+  margin-top: 6rem;
   color: oklch(0.439 0 0);
   font-size: 0.75rem;
 }

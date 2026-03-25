@@ -1,0 +1,45 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar style="--background: transparent">
+    <ion-buttons slot="start">
+      <ion-back-button
+        defaultHref="/home"
+        text="Volver al Inicio"
+        style="color: rgb(200, 205, 210)"
+      ></ion-back-button>
+    </ion-buttons>
+    <ion-title
+      slot="end"
+      style="
+        color: rgb(200, 205, 210);
+        font-size: 0.85rem;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      "
+    >
+      ANALISIS
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+  <div class="vista-wrapper">
+    <div class="vista-panel animate__animated animate__fadeIn">
+      <div class="vista-header">
+        <h1 class="vista-titulo analisis">Panel de Análisis</h1>
+        <p class="vista-subtitulo">Estadísticas y proyecciones</p>
+      </div>
+
+      <div class="widgets-grid">
+        <div class="widget-placeholder"></div>
+        <div class="widget-placeholder"></div>
+        <div class="widget-placeholder"></div>
+        <div class="widget-placeholder wide"></div>
+      </div>
+
+      <div class="demo-badge">
+        Esta es una vista de demostración. En la versión final, aquí se
+        cargarían los datos reales.
+      </div>
+    </div>
+  </div>
+</ion-content>

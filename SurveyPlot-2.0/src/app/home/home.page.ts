@@ -15,12 +15,14 @@ import {
   gridOutline,
 } from 'ionicons/icons';
 
+import { RouterLink } from '@angular/router';
+
 @Component({
   selector: 'app-home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
   standalone: true,
-  imports: [IonContent, IonGrid, IonRow, IonCol, IonIcon, IonText],
+  imports: [IonContent, IonGrid, IonRow, IonCol, IonIcon, IonText, RouterLink],
 })
 export class HomePage {
   // <--- ESTE NOMBRE DEBE COINCIDIR EN app.routes.ts

@@ -1,51 +1,109 @@
 <ion-content [fullscreen]="true" class="ion-padding">
   <div class="main-wrapper">
-    <header class="header-minimal animate__animated animate__backInDown">
+    <header class="header-minimal animate__animated animate__zoomInDown">
       <div class="icon-box">
         <img src="../../assets/logopng.png" alt="Logo SurveyPlot" />
       </div>
-      <h1 class="text-2xl font-medium">SurveyPlot</h1>
-      <p class="text-muted">
-        Plataforma integral para la gestión y análisis de datos.
+      <h1 class="title-text">SurveyPlot</h1>
+      <p class="subtitle-text">
+        Plataforma integral para la gestión, consolidación y análisis de datos.
       </p>
+      <h6
+        class="subtitle-text"
+        style="
+          font-size: 0.875rem;
+          margin: 0px 0 40px 0;
+          color: rgb(55, 182, 240);
+          font-weight: 600;
+        "
+      >
+        Bienvenido al sistema
+      </h6>
     </header>
 
     <div class="cards-container">
-      <div class="custom-card animate__animated animate__bounceIn">
-        <div class="card-header">
-          <ion-icon name="person-outline" class="text-accent"></ion-icon>
-          <h3 class="text-lg font-medium">Individual</h3>
+      <div
+        class="custom-card card-individual animate__animated animate__backInUp"
+      >
+        <div class="card-header row">
+          <div class="col-12">
+            <div class="box-icon-individual">
+              <ion-icon
+                name="person-outline"
+                class="text-accent-individual"
+                style="font-size: 30px"
+              ></ion-icon>
+            </div>
+          </div>
+          <div class="col-12">
+            <h3 class="subtitle-text">Individual</h3>
+          </div>
         </div>
-        <p class="card-body text-muted">
-          Gestión detallada de registros únicos y perfiles específicos.
+        <p class="card-body card-text">
+          <small
+            >Gestión detallada de registros únicos y perfiles
+            específicos.</small
+          >
         </p>
-        <button class="btn-ghost">Acceder →</button>
+        <a routerLink="/individual" class="a-ghost"
+          >Acceder <span class="arrow">→</span></a
+        >
       </div>
 
-      <div class="custom-card animate__animated animate__bounceIn">
-        <div class="card-header">
-          <ion-icon name="layers-outline" class="text-accent"></ion-icon>
-          <h3 class="text-lg font-medium">Consolidado</h3>
+      <div
+        class="custom-card card-consolidado animate__animated animate__backInUp"
+      >
+        <div class="card-header row">
+          <div class="col-12">
+            <div class="box-icon-consolidado">
+              <ion-icon
+                name="layers-outline"
+                class="text-accent-consolidado"
+                style="font-size: 30px"
+              ></ion-icon>
+            </div>
+          </div>
+          <div class="col-12">
+            <h3 class="subtitle-text">Consolidado</h3>
+          </div>
         </div>
-        <p class="card-body text-muted">
-          Vista unificada de múltiples fuentes de información.
+        <p class="card-body card-text">
+          <small>Vista unificada de múltiples fuentes de información.</small>
         </p>
-        <button class="btn-ghost">Acceder →</button>
+        <a routerLink="/consolidado" class="a-ghost"
+          >Acceder <span class="arrow">→</span></a
+        >
       </div>
 
-      <div class="custom-card animate__animated animate__bounceIn">
-        <div class="card-header">
-          <ion-icon name="bar-chart-outline" class="text-accent"></ion-icon>
-          <h3 class="text-lg font-medium">Análisis</h3>
+      <div
+        class="custom-card card-analisis animate__animated animate__backInUp"
+      >
+        <div class="card-header row">
+          <div class="col-12">
+            <div class="box-icon-analisis">
+              <ion-icon
+                name="bar-chart-outline"
+                class="text-accent-analisis"
+                style="font-size: 30px"
+              ></ion-icon>
+            </div>
+          </div>
+          <div class="col-12">
+            <h3 class="subtitle-text">Análisis</h3>
+          </div>
         </div>
-        <p class="card-body text-muted">
-          Métricas avanzadas, gráficos y reportes de rendimiento.
+        <p class="card-body card-text">
+          <small>
+            Métricas avanzadas, gráficos y reportes de rendimiento.
+          </small>
         </p>
-        <button class="btn-ghost">Acceder →</button>
+        <a routerLink="/analisis" class="a-ghost"
+          >Acceder <span class="arrow">→</span></a
+        >
       </div>
     </div>
 
-    <footer class="footer-text">
+    <footer class="footer-text animate__animated animate__fadeIn">
       <p>© 2026 SurveyPlot Platform. Todos los derechos reservados.</p>
     </footer>
   </div>

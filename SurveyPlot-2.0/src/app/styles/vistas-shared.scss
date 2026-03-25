@@ -1,0 +1,86 @@
+.vista-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100%;
+  padding: 20px 16px 40px;
+}
+
+.vista-panel {
+  width: 100%;
+  max-width: 1100px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.2rem;
+  padding: 40px 40px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.vista-header {
+  text-align: center;
+}
+
+.vista-titulo {
+  font-family: "Roboto", sans-serif;
+  font-weight: 900;
+  font-size: 2.8rem;
+  letter-spacing: -0.5px;
+  margin: 0 0 8px;
+
+  &.individual {
+    color: rgb(0, 208, 255);
+  }
+  &.consolidado {
+    color: rgb(168, 85, 247);
+  }
+  &.analisis {
+    color: rgb(0, 214, 143);
+  }
+}
+
+.vista-subtitulo {
+  font-family: "Roboto", sans-serif;
+  color: rgb(200, 205, 210);
+  font-size: 1rem;
+  margin: 0;
+}
+
+// Grid de widgets placeholder
+.widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+
+  .widget-placeholder {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 0.75rem;
+    height: 140px;
+
+    &.wide {
+      grid-column: 1 / -1;
+      height: 160px;
+    }
+  }
+}
+
+// Badge de demo
+.demo-badge {
+  align-self: center;
+  border: 1px solid rgba(212, 160, 23, 0.5);
+  color: rgb(212, 160, 23);
+  font-size: 0.8rem;
+  padding: 8px 20px;
+  border-radius: 999px;
+  text-align: center;
+  background: rgba(212, 160, 23, 0.05);
+}
+
+ion-toolbar {
+  --background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
