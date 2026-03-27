@@ -6,7 +6,10 @@ import {
   IonTitle,
   IonButtons,
   IonBackButton,
+  IonIcon,
 } from '@ionic/angular/standalone';
+import { addIcons } from 'ionicons';
+import { documentTextOutline, cloudUploadOutline } from 'ionicons/icons';
 
 @Component({
   selector: 'app-individual',
@@ -20,6 +23,11 @@ import {
     IonTitle,
     IonButtons,
     IonBackButton,
+    IonIcon,
   ],
 })
-export class IndividualPage {}
+export class IndividualPage {
+  constructor() {
+    addIcons({ documentTextOutline, cloudUploadOutline });
+  }
+}

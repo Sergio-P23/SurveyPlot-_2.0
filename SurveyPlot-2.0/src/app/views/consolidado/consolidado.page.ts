@@ -5,11 +5,14 @@ import { RouterLink } from '@angular/router';
 import {
   IonContent,
   IonHeader,
-  IonTitle,
   IonToolbar,
+  IonTitle,
   IonButtons,
   IonBackButton,
+  IonIcon,
 } from '@ionic/angular/standalone';
+import { addIcons } from 'ionicons';
+import { layersOutline, cloudUploadOutline } from 'ionicons/icons';
 
 @Component({
   selector: 'app-consolidado',
@@ -19,16 +22,19 @@ import {
   imports: [
     IonContent,
     IonHeader,
-    IonTitle,
     IonToolbar,
+    IonTitle,
     IonButtons,
     IonBackButton,
+    IonIcon,
     CommonModule,
     FormsModule,
     RouterLink,
   ],
 })
 export class ConsolidadoPage implements OnInit {
-  constructor() {}
+  constructor() {
+    addIcons({ layersOutline, cloudUploadOutline });
+  }
   ngOnInit() {}
 }

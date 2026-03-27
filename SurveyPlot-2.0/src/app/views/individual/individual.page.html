@@ -1,5 +1,5 @@
-<ion-header class="ion-no-border">
-  <ion-toolbar style="--background: transparent">
+<ion-header translucent class="ion-no-border">
+  <ion-toolbar>
     <ion-buttons slot="start">
       <ion-back-button
         defaultHref="/home"
@@ -24,23 +24,72 @@
 <ion-content [fullscreen]="true" class="ion-padding">
   <div class="vista-wrapper">
     <div class="vista-panel animate__animated animate__fadeIn">
-      <div class="vista-header">
-        <h1 class="vista-titulo individual">Vista Individual</h1>
-        <p class="vista-subtitulo">Gestión de registros por usuario</p>
+      <!-- Ícono -->
+      <div class="form-icon-box">
+        <ion-icon name="document-text-outline" class="form-icon"></ion-icon>
       </div>
 
-      <!-- widgets aquí -->
-      <div class="widgets-grid">
-        <div class="widget-placeholder"></div>
-        <div class="widget-placeholder"></div>
-        <div class="widget-placeholder"></div>
-        <div class="widget-placeholder wide"></div>
+      <!-- Título -->
+      <h2 class="form-title">Cargar Archivo Excel</h2>
+
+      <!-- Formulario -->
+      <div class="form-grid">
+        <!-- Nombre encuesta - fila completa -->
+        <div class="form-group full">
+          <label class="form-label">Nombre de la Encuesta</label>
+          <input
+            class="form-input"
+            type="text"
+            placeholder="carac31-ing Industrial"
+          />
+        </div>
+
+        <!-- Selector de archivo - fila completa -->
+        <div class="form-group full">
+          <label class="form-label">Selecciona un archivo Excel</label>
+          <div class="file-input-wrapper">
+            <span class="file-placeholder"
+              >No se ha seleccionado ningún archivo</span
+            >
+            <button class="btn-file">
+              <ion-icon name="cloud-upload-outline"></ion-icon>
+              Elegir archivo
+            </button>
+            <input type="file" accept=".xlsx,.xls" class="file-hidden" />
+          </div>
+        </div>
+
+        <!-- Columna primera pregunta -->
+        <div class="form-group">
+          <label class="form-label">Columna primera pregunta</label>
+          <input class="form-input" type="text" placeholder="Ej: E" />
+        </div>
+
+        <!-- Columna última pregunta -->
+        <div class="form-group">
+          <label class="form-label">Columna última pregunta</label>
+          <input class="form-input" type="text" placeholder="Ej: M" />
+        </div>
+
+        <!-- Fila donde inician -->
+        <div class="form-group">
+          <label class="form-label">Fila donde inician las respuestas</label>
+          <input class="form-input" type="text" placeholder="Ej: 2" />
+        </div>
+
+        <!-- Fila donde terminan -->
+        <div class="form-group">
+          <label class="form-label">Fila donde terminan las respuestas</label>
+          <input class="form-input" type="text" placeholder="Ej: 42" />
+        </div>
       </div>
 
-      <div class="demo-badge">
-        Esta es una vista de demostración. En la versión final, aquí se
-        cargarían los datos reales.
-      </div>
+      <!-- Botón -->
+      <button class="btn-generar">Generar gráficas</button>
     </div>
   </div>
+
+  <footer class="footer-text animate__animated animate__fadeIn">
+    <p>© 2026 SurveyPlot Platform. Todos los derechos reservados.</p>
+  </footer>
 </ion-content>

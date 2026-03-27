@@ -1,1 +1,156 @@
 @import "../../styles/vistas-shared";
+
+// Ícono superior
+.form-icon-box {
+  display: flex;
+  justify-content: center;
+
+  .form-icon {
+    font-size: 2.5rem;
+    color: rgb(0, 208, 255);
+    background: rgba(28, 60, 97, 0.811);
+    border: 1px solid rgba(6, 79, 121, 0.647);
+    border-radius: 14px;
+    padding: 14px;
+  }
+}
+
+// Título del formulario
+.form-title {
+  font-family: "Roboto", sans-serif;
+  font-weight: 900;
+  font-size: 1.8rem;
+  color: rgb(231, 246, 254);
+  text-align: center;
+  margin: 0;
+}
+
+// Grid del formulario
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+
+    &.full {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+// Label
+.form-label {
+  font-family: "Roboto", sans-serif;
+  font-size: 0.85rem;
+  color: rgb(200, 205, 210);
+  font-weight: 500;
+}
+
+// Input de texto
+.form-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.6rem;
+  padding: 14px 16px;
+  color: rgb(231, 246, 254);
+  font-size: 0.95rem;
+  font-family: "Roboto", sans-serif;
+  outline: none;
+  transition: border-color 0.2s ease;
+
+  &::placeholder {
+    color: rgba(200, 205, 210, 0.4);
+  }
+
+  &:focus {
+    border-color: rgba(0, 208, 255, 0.4);
+  }
+}
+
+// Input de archivo
+.file-input-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.6rem;
+  padding: 10px 10px 10px 16px;
+  position: relative;
+
+  .file-placeholder {
+    color: rgba(200, 205, 210, 0.4);
+    font-size: 0.95rem;
+    font-family: "Roboto", sans-serif;
+  }
+
+  .file-hidden {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+  }
+}
+
+// Botón elegir archivo
+.btn-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgb(0, 208, 255);
+  color: rgb(10, 20, 40);
+  border: none;
+  border-radius: 0.5rem;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  z-index: 1;
+  pointer-events: none; // el click lo maneja .file-hidden
+}
+
+// Botón generar
+.btn-generar {
+  width: 100%;
+  padding: 16px;
+  background: rgb(58, 107, 255);
+  color: white;
+  border: none;
+  border-radius: 0.75rem;
+  font-family: "Roboto", sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+
+  &:hover {
+    background: rgb(80, 125, 255);
+    transform: translateY(-2px);
+  }
+}
+
+ion-toolbar {
+  --background: rgba(15, 20, 40, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+ion-content {
+  --offset-top: 0px;
+}
+
+.footer-text {
+  text-align: center;
+  margin-top: 2rem;
+  color: oklch(0.439 0 0);
+  font-size: 0.75rem;
+}
