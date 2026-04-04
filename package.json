@@ -3,6 +3,7 @@
     "@supabase/supabase-js": "^2.101.1",
     "chart.js": "^4.5.1",
     "jspdf": "^4.2.1",
+    "qrious": "^4.0.2",
     "sweetalert2": "^11.26.24",
     "xlsx": "^0.18.5"
   },
