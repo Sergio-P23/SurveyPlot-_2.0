@@ -631,15 +631,18 @@ export class IndividualPage {
       title: '<strong>PDF cargado correctamente</strong>',
       icon: 'success',
       html: `
-      <p>¡Escanea el QR para abrir el PDF en tu navegador!</p>
-      <canvas id="qr-pdf"></canvas>
-      <br>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
+      <p style="margin:0">¡Escanea el QR para abrir el PDF en tu navegador!</p>
+       <div style="width:100%; display:flex; justify-content:center;">
+      <canvas id="qr-pdf" style="margin:0 0 0 40px;"></canvas>
+    </div>
       <small>
         <a href="${publicUrl}" target="_blank" style="color:#3085d6; font-weight:bold;">
           También puedes abrirlo aquí
         </a>
       </small>
-    `,
+    </div>
+  `,
       confirmButtonText: '¡Continuar!',
       didOpen: () => {
         setTimeout(() => {

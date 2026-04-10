@@ -15,7 +15,6 @@
   }
 }
 
-// Título del formulario
 .form-title {
   font-family: "Roboto", sans-serif;
   font-weight: 900;
@@ -25,7 +24,6 @@
   margin: 0;
 }
 
-// Grid del formulario
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -42,7 +40,6 @@
   }
 }
 
-// Label
 .form-label {
   font-family: "Roboto", sans-serif;
   font-size: 0.85rem;
@@ -50,7 +47,6 @@
   font-weight: 500;
 }
 
-// Input de texto
 .form-input {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -71,7 +67,6 @@
   }
 }
 
-// Input de archivo
 .file-input-wrapper {
   display: flex;
   align-items: center;
@@ -97,7 +92,6 @@
   }
 }
 
-// Botón elegir archivo
 .btn-file {
   display: flex;
   align-items: center;
@@ -112,10 +106,9 @@
   cursor: pointer;
   white-space: nowrap;
   z-index: 1;
-  pointer-events: none; // el click lo maneja .file-hidden
+  pointer-events: none;
 }
 
-// Botón generar
 .btn-generar {
   width: 100%;
   padding: 16px;
@@ -155,6 +148,7 @@ ion-content {
   font-size: 0.75rem;
 }
 
+// ── Gráficas base (desktop) — 2 columnas ──
 .graficas-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -162,11 +156,15 @@ ion-content {
   margin-bottom: 2rem;
 
   .grafica-item {
-    background: rgba(228, 215, 215, 0.04);
+    background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 0.75rem;
     padding: 16px;
-    height: 320px; // ← bajé de 350 a 320
+    height: 320px;
+
+    canvas {
+      color: rgba(231, 246, 254, 0.85) !important;
+    }
   }
 }
 
@@ -187,8 +185,88 @@ ion-content {
   }
 }
 
-.grafica-item {
-  canvas {
-    color: rgba(231, 246, 254, 0.85) !important;
+// ── Tablet (910px) — 1 columna gráficas ──
+@media (max-width: 910px) {
+  .graficas-grid {
+    grid-template-columns: 1fr;
+
+    .grafica-item {
+      height: 350px;
+    }
+  }
+}
+
+// ── Móvil (700px) ──
+@media (max-width: 700px) {
+  .vista-wrapper {
+    padding: 10px 8px 24px;
+  }
+
+  .vista-panel {
+    padding: 24px 16px 20px;
+    gap: 1.2rem;
+  }
+
+  .form-title {
+    font-size: 1.3rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+
+    .form-group.full {
+      grid-column: 1;
+    }
+  }
+
+  .form-icon-box {
+    .form-icon {
+      font-size: 2rem;
+      padding: 10px;
+    }
+  }
+
+  .file-input-wrapper {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+
+    .file-placeholder {
+      font-size: 0.8rem;
+    }
+
+    .btn-file {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .btn-generar {
+    font-size: 0.9rem;
+    padding: 14px;
+  }
+
+  .graficas-grid {
+    grid-template-columns: 1fr;
+
+    .grafica-item {
+      height: auto;
+      min-height: 300px;
+      padding: 12px;
+    }
+  }
+
+  .graficas-botones {
+    flex-direction: column;
+
+    .btn-generar {
+      width: 100%;
+    }
+  }
+
+  .footer-text {
+    margin-top: 1.5rem;
+    font-size: 0.7rem;
   }
 }
