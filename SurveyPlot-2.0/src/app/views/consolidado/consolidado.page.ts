@@ -465,7 +465,11 @@ export class ConsolidadoPage {
 
       const canvas = document.createElement('canvas');
       canvas.id = `grafica-cons-${index}`;
-      canvas.style.maxHeight = '300px';
+      canvas.style.width = '100%';
+      canvas.style.maxWidth = '100%';
+      canvas.style.height = '100%';
+      canvas.style.maxHeight = '340px';
+      canvas.style.display = 'block';
       col.appendChild(canvas);
       container.appendChild(col);
 

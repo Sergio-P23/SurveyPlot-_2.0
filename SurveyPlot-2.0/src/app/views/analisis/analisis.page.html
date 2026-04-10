@@ -1,5 +1,5 @@
-<ion-header class="ion-no-border">
-  <ion-toolbar style="--background: transparent">
+<ion-header translucent class="ion-no-border">
+  <ion-toolbar>
     <ion-buttons slot="start">
       <ion-back-button
         defaultHref="/home"
@@ -24,22 +24,211 @@
 <ion-content [fullscreen]="true" class="ion-padding">
   <div class="vista-wrapper">
     <div class="vista-panel animate__animated animate__fadeIn">
-      <div class="vista-header">
-        <h1 class="vista-titulo analisis">Panel de Análisis</h1>
-        <p class="vista-subtitulo">Estadísticas y proyecciones</p>
+      <!-- Ícono y título -->
+      <div class="form-icon-box">
+        <ion-icon
+          name="bar-chart-outline"
+          class="form-icon analisis"
+        ></ion-icon>
+      </div>
+      <h2 class="form-title">Procesador Inteligente de Reportes</h2>
+      <p class="form-subtitle">
+        Completa los dos pasos para generar tu análisis automático
+      </p>
+
+      <!-- Stepper -->
+      <div class="stepper">
+        <div
+          class="step"
+          [class.active]="pasoActual === 1"
+          [class.completed]="pasoActual > 1"
+        >
+          <div class="step-circle">
+            <ion-icon
+              name="checkmark-outline"
+              *ngIf="pasoActual > 1"
+            ></ion-icon>
+            <span *ngIf="pasoActual <= 1">1</span>
+          </div>
+          <span class="step-label">Configuración de Fuente</span>
+        </div>
+        <div class="step-line" [class.completed]="pasoActual > 1"></div>
+        <div class="step" [class.active]="pasoActual === 2">
+          <div class="step-circle">
+            <span>2</span>
+          </div>
+          <span class="step-label">Destino del Análisis</span>
+        </div>
       </div>
 
-      <div class="widgets-grid">
-        <div class="widget-placeholder"></div>
-        <div class="widget-placeholder"></div>
-        <div class="widget-placeholder"></div>
-        <div class="widget-placeholder wide"></div>
+      <!-- PASO 1 -->
+      <div
+        *ngIf="pasoActual === 1"
+        class="paso-container animate__animated animate__fadeIn"
+      >
+        <div class="paso-header">
+          <div class="paso-icon">
+            <ion-icon name="help-circle-outline"></ion-icon>
+          </div>
+          <div>
+            <h3 class="paso-titulo">Paso 1: Configuración de Fuente</h3>
+            <p class="paso-descripcion">
+              Carga el archivo de preguntas y define el rango de celdas
+            </p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Archivo Excel de Preguntas</label>
+          <div class="file-drop-zone" (click)="triggerFile1()">
+            <ion-icon
+              name="cloud-upload-outline"
+              class="file-drop-icon"
+            ></ion-icon>
+            <span class="file-drop-text">{{ nombreArchivoPaso1 }}</span>
+            <span class="file-drop-hint" *ngIf="!archivoPaso1"
+              >o arrastra y suelta aquí</span
+            >
+            <input
+              #fileInput1
+              type="file"
+              accept=".xlsx,.xls"
+              class="file-hidden"
+              (change)="onArchivoPaso1($event)"
+            />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Celda de Inicio</label>
+            <input
+              class="form-input"
+              type="text"
+              placeholder="E1"
+              [(ngModel)]="celdaInicio"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Celda de Fin</label>
+            <input
+              class="form-input"
+              type="text"
+              placeholder="O1"
+              [(ngModel)]="celdaFin"
+            />
+          </div>
+        </div>
+
+        <button class="btn-generar analisis" (click)="irPaso2()">
+          Guardar y Procesar Preguntas
+        </button>
       </div>
 
-      <div class="demo-badge">
-        Esta es una vista de demostración. En la versión final, aquí se
-        cargarían los datos reales.
+      <!-- PASO 2 -->
+      <div
+        *ngIf="pasoActual === 2"
+        class="paso-container animate__animated animate__fadeIn"
+      >
+        <!-- Resumen paso 1 colapsado -->
+        <div class="paso-completado">
+          <ion-icon
+            name="checkmark-circle-outline"
+            class="check-icon"
+          ></ion-icon>
+          <span>Configuración de Fuente completada</span>
+          <ion-icon name="chevron-down-outline"></ion-icon>
+        </div>
+
+        <div class="paso-header">
+          <div class="paso-icon analisis">
+            <ion-icon name="bar-chart-outline"></ion-icon>
+          </div>
+          <div>
+            <h3 class="paso-titulo">Paso 2: Destino del Análisis</h3>
+            <p class="paso-descripcion">
+              Carga la plantilla de gráficas y mapea las columnas de destino
+            </p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Archivo Excel de Gráficas</label>
+          <div class="file-drop-zone" (click)="triggerFile2()">
+            <ion-icon
+              name="cloud-upload-outline"
+              class="file-drop-icon"
+            ></ion-icon>
+            <span class="file-drop-text">{{ nombreArchivoPaso2 }}</span>
+            <span class="file-drop-hint" *ngIf="!archivoPaso2"
+              >o arrastra y suelta aquí</span
+            >
+            <input
+              #fileInput2
+              type="file"
+              accept=".xlsx,.xls"
+              class="file-hidden"
+              (change)="onArchivoPaso2($event)"
+            />
+          </div>
+        </div>
+
+        <div class="mapeo-section">
+          <h4 class="mapeo-titulo">MAPEO DE COLUMNAS</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Columna de Afirmaciones</label>
+              <input
+                class="form-input"
+                type="text"
+                placeholder="Ej: Columna C"
+                [(ngModel)]="colAfirmaciones"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Columna Análisis Gestores</label>
+              <input
+                class="form-input"
+                type="text"
+                placeholder="Ej: Columna F"
+                [(ngModel)]="colGestores"
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Columna Análisis Estudiantes</label>
+              <input
+                class="form-input"
+                type="text"
+                placeholder="Ej: Columna G"
+                [(ngModel)]="colEstudiantes"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Columna Análisis Consolidado</label>
+              <input
+                class="form-input"
+                type="text"
+                placeholder="Ej: Columna I"
+                [(ngModel)]="colConsolidado"
+              />
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-generar analisis" (click)="generarReporte()">
+          Generar Reporte con IA
+        </button>
+
+        <button class="btn-volver" (click)="volverPaso1()">
+          ← Volver al Paso 1
+        </button>
       </div>
     </div>
   </div>
+
+  <footer class="footer-text">
+    <p>© 2026 SurveyPlot Platform. Todos los derechos reservados.</p>
+  </footer>
 </ion-content>
