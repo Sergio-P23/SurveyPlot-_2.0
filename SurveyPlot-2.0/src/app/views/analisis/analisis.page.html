@@ -50,7 +50,7 @@
             ></ion-icon>
             <span *ngIf="pasoActual <= 1">1</span>
           </div>
-          <span class="step-label">Configuración de Fuente</span>
+          <span class="step-label">Recopilacion de preguntas</span>
         </div>
         <div class="step-line" [class.completed]="pasoActual > 1"></div>
         <div class="step" [class.active]="pasoActual === 2">
@@ -71,9 +71,10 @@
             <ion-icon name="help-circle-outline"></ion-icon>
           </div>
           <div>
-            <h3 class="paso-titulo">Paso 1: Configuración de Fuente</h3>
+            <h3 class="paso-titulo">Paso 1:</h3>
             <p class="paso-descripcion">
-              Carga el archivo de preguntas y define el rango de celdas
+              Carga el archivo de preguntas y define el rango de celdas en las
+              que se encuentran
             </p>
           </div>
         </div>
@@ -131,12 +132,12 @@
         class="paso-container animate__animated animate__fadeIn"
       >
         <!-- Resumen paso 1 colapsado -->
-        <div class="paso-completado">
+        <div class="paso-completado" style="margin-bottom: 30px">
           <ion-icon
             name="checkmark-circle-outline"
             class="check-icon"
           ></ion-icon>
-          <span>Configuración de Fuente completada</span>
+          <span>Recopilación de Preguntas completada</span>
           <ion-icon name="chevron-down-outline"></ion-icon>
         </div>
 
@@ -145,7 +146,7 @@
             <ion-icon name="bar-chart-outline"></ion-icon>
           </div>
           <div>
-            <h3 class="paso-titulo">Paso 2: Destino del Análisis</h3>
+            <h3 class="paso-titulo">Paso 2:</h3>
             <p class="paso-descripcion">
               Carga la plantilla de gráficas y mapea las columnas de destino
             </p>
@@ -169,6 +170,17 @@
               accept=".xlsx,.xls"
               class="file-hidden"
               (change)="onArchivoPaso2($event)"
+            />
+          </div>
+          <br />
+
+          <div class="form-group">
+            <label class="form-label">Nombre de la Hoja</label>
+            <input
+              class="form-input"
+              type="text"
+              placeholder="Ej: Hoja1, Análisis, Sheet1"
+              [(ngModel)]="nombreHoja"
             />
           </div>
         </div>
