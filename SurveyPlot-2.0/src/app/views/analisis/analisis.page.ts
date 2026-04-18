@@ -19,9 +19,17 @@ import {
   helpCircleOutline,
   checkmarkCircleOutline,
   chevronDownOutline,
+  documentOutline,
 } from 'ionicons/icons';
 import Swal from 'sweetalert2';
 import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import * as pdfjsLib from 'pdfjs-dist';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url,
+).toString();
 
 @Component({
   selector: 'app-analisis',
@@ -43,28 +51,26 @@ import * as XLSX from 'xlsx';
 })
 export class AnalisisPage {
   @ViewChild('fileInput1') fileInput1!: ElementRef;
-  @ViewChild('fileInput2') fileInput2!: ElementRef;
+  @ViewChild('pdfInputGestores') pdfInputGestores!: ElementRef;
+  @ViewChild('pdfInputEstudiantes') pdfInputEstudiantes!: ElementRef;
+  @ViewChild('pdfInputConsolidado') pdfInputConsolidado!: ElementRef;
 
   pasoActual: number = 1;
 
   // Paso 1
   archivoPaso1: File | null = null;
-  nombreArchivoPaso1: string = 'Elegir archivo';
+  nombreArchivoPaso1: string = 'Elegir archivo Excel';
   celdaInicio: string = '';
   celdaFin: string = '';
   preguntasExtraidas: string[] = [];
 
   // Paso 2
-  archivoPaso2: File | null = null;
-  nombreArchivoPaso2: string = 'Elegir archivo';
-  nombreHoja: string = '';
-  colAfirmaciones: string = '';
-  colGestores: string = '';
-  colEstudiantes: string = '';
-  colConsolidado: string = '';
-
-  // Libro de trabajo del paso 2 en memoria
-  private libroTrabajoPaso2: XLSX.WorkBook | null = null;
+  pdfGestores: File | null = null;
+  nombrePdfGestores: string = 'Elegir PDF de Gestores';
+  pdfEstudiantes: File | null = null;
+  nombrePdfEstudiantes: string = 'Elegir PDF de Estudiantes';
+  pdfConsolidado: File | null = null;
+  nombrePdfConsolidado: string = 'Elegir PDF Consolidado';
 
   constructor() {
     addIcons({
@@ -74,14 +80,21 @@ export class AnalisisPage {
       helpCircleOutline,
       checkmarkCircleOutline,
       chevronDownOutline,
+      documentOutline,
     });
   }
 
   triggerFile1() {
     this.fileInput1.nativeElement.click();
   }
-  triggerFile2() {
-    this.fileInput2.nativeElement.click();
+  triggerPdfGestores() {
+    this.pdfInputGestores.nativeElement.click();
+  }
+  triggerPdfEstudiantes() {
+    this.pdfInputEstudiantes.nativeElement.click();
+  }
+  triggerPdfConsolidado() {
+    this.pdfInputConsolidado.nativeElement.click();
   }
 
   onArchivoPaso1(event: any) {
@@ -91,18 +104,30 @@ export class AnalisisPage {
       this.nombreArchivoPaso1 = file.name;
     }
   }
-
-  onArchivoPaso2(event: any) {
+  onPdfGestores(event: any) {
     const file = event.target.files[0];
     if (file) {
-      this.archivoPaso2 = file;
-      this.nombreArchivoPaso2 = file.name;
+      this.pdfGestores = file;
+      this.nombrePdfGestores = file.name;
+    }
+  }
+  onPdfEstudiantes(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      this.pdfEstudiantes = file;
+      this.nombrePdfEstudiantes = file.name;
+    }
+  }
+  onPdfConsolidado(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      this.pdfConsolidado = file;
+      this.nombrePdfConsolidado = file.name;
     }
   }
 
   // ─── PASO 1 ───────────────────────────────────────────────
   async irPaso2() {
-    // 1. Validar archivo
     if (!this.archivoPaso1) {
       await Swal.fire({
         icon: 'warning',
@@ -114,7 +139,6 @@ export class AnalisisPage {
       return;
     }
 
-    // 2. Validar formato celdas — deben ser LETRA(S)+NUMERO
     const regexCelda = /^[A-Za-z]+\d+$/;
     if (!this.celdaInicio.trim() || !regexCelda.test(this.celdaInicio.trim())) {
       await Swal.fire({
@@ -139,43 +163,28 @@ export class AnalisisPage {
 
     const celdaInicioUpper = this.celdaInicio.trim().toUpperCase();
     const celdaFinUpper = this.celdaFin.trim().toUpperCase();
-
-    // 3. Extraer columna y fila de cada celda
     const matchInicio = celdaInicioUpper.match(/^([A-Z]+)(\d+)$/);
     const matchFin = celdaFinUpper.match(/^([A-Z]+)(\d+)$/);
-
-    if (!matchInicio || !matchFin) {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'Formato inválido',
-        text: 'Usa el formato COLUMNA+FILA, por ejemplo: E1, O3.',
-        confirmButtonText: 'Entendido',
-        confirmButtonColor: '#00d68f',
-      });
-      return;
-    }
+    if (!matchInicio || !matchFin) return;
 
     const colInicio = matchInicio[1];
     const filaInicio = parseInt(matchInicio[2]);
     const colFin = matchFin[1];
     const filaFin = parseInt(matchFin[2]);
 
-    // 4. Validar que la fila sea igual en inicio y fin
     if (filaInicio !== filaFin) {
       await Swal.fire({
         icon: 'error',
         title: 'Filas distintas',
-        text: `La celda de inicio está en la fila ${filaInicio} y la de fin en la fila ${filaFin}. Deben estar en la misma fila.`,
+        text: `La fila de inicio (${filaInicio}) y la de fin (${filaFin}) deben ser iguales.`,
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#00d68f',
       });
       return;
     }
 
-    // 5. Validar que columna inicio no sea mayor que fin
     const idxColInicio = XLSX.utils.decode_col(colInicio);
     const idxColFin = XLSX.utils.decode_col(colFin);
-
     if (idxColInicio > idxColFin) {
       await Swal.fire({
         icon: 'error',
@@ -187,7 +196,6 @@ export class AnalisisPage {
       return;
     }
 
-    // 6. Leer el archivo y extraer preguntas
     Swal.fire({
       title: 'Leyendo archivo...',
       allowOutsideClick: false,
@@ -206,7 +214,7 @@ export class AnalisisPage {
         await Swal.fire({
           icon: 'error',
           title: 'Sin preguntas',
-          text: `No se encontraron datos en el rango ${celdaInicioUpper} → ${celdaFinUpper}. Verifica las celdas.`,
+          text: `No se encontraron datos en el rango ${celdaInicioUpper} → ${celdaFinUpper}.`,
           confirmButtonText: 'Entendido',
           confirmButtonColor: '#00d68f',
         });
@@ -219,7 +227,7 @@ export class AnalisisPage {
         icon: 'success',
         title: '¡Preguntas extraídas!',
         html: `
-          <p>Se encontraron <b>${preguntas.length} preguntas</b> en el rango ${celdaInicioUpper} → ${celdaFinUpper}:</p>
+          <p>Se encontraron <b>${preguntas.length} preguntas</b>:</p>
           <div style="max-height:200px; overflow-y:auto; text-align:left; margin-top:10px;">
             ${preguntas.map((p, i) => `<div style="padding:4px 0; border-bottom:1px solid rgba(0,0,0,0.05); font-size:0.85rem;"><b>${i + 1}.</b> ${p}</div>`).join('')}
           </div>
@@ -233,7 +241,7 @@ export class AnalisisPage {
       Swal.fire({
         icon: 'error',
         title: 'Error al leer',
-        text: 'No se pudo leer el archivo. Asegúrate de que sea un Excel válido.',
+        text: 'No se pudo leer el archivo.',
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#00d68f',
       });
@@ -256,11 +264,9 @@ export class AnalisisPage {
           const jsonData: any[][] = XLSX.utils.sheet_to_json(hoja, {
             header: 1,
           });
-
-          const filaIndex = fila - 1; // base 0
+          const filaIndex = fila - 1;
           const idxInicio = XLSX.utils.decode_col(colInicio);
           const idxFin = XLSX.utils.decode_col(colFin);
-
           const preguntas: string[] = [];
           for (let col = idxInicio; col <= idxFin; col++) {
             const valor = jsonData[filaIndex]?.[col];
@@ -279,40 +285,32 @@ export class AnalisisPage {
   }
 
   // ─── PASO 2 ───────────────────────────────────────────────
-  async generarReporte() {
-    // 1. Validar archivo
-    if (!this.archivoPaso2) {
+  async generarMatriz() {
+    if (!this.pdfGestores) {
       await Swal.fire({
         icon: 'warning',
-        title: 'Archivo requerido',
-        text: 'Selecciona el archivo Excel de gráficas.',
+        title: 'PDF requerido',
+        text: 'Sube el PDF de Gestores.',
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#00d68f',
       });
       return;
     }
-
-    // 2. Validar nombre de hoja
-    if (!this.nombreHoja.trim()) {
+    if (!this.pdfEstudiantes) {
       await Swal.fire({
         icon: 'warning',
-        title: 'Nombre de hoja requerido',
-        text: 'Ingresa el nombre exacto de la hoja donde se pegarán las afirmaciones.',
+        title: 'PDF requerido',
+        text: 'Sube el PDF de Estudiantes.',
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#00d68f',
       });
       return;
     }
-
-    // 3. Validar columna de afirmaciones
-    if (
-      !this.colAfirmaciones.trim() ||
-      !/^[A-Za-z]+$/.test(this.colAfirmaciones.trim())
-    ) {
+    if (!this.pdfConsolidado) {
       await Swal.fire({
         icon: 'warning',
-        title: 'Columna inválida',
-        text: 'Ingresa solo la letra de la columna de afirmaciones (Ej: C).',
+        title: 'PDF requerido',
+        text: 'Sube el PDF Consolidado.',
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#00d68f',
       });
@@ -320,130 +318,267 @@ export class AnalisisPage {
     }
 
     Swal.fire({
-      title: 'Procesando...',
+      title: 'Extrayendo gráficas...',
+      text: 'Esto puede tomar unos segundos.',
       allowOutsideClick: false,
       didOpen: () => Swal.showLoading(),
     });
 
     try {
-      await this.pegarAfirmaciones(
-        this.archivoPaso2,
-        this.nombreHoja.trim(),
-        this.colAfirmaciones.trim().toUpperCase(),
-        this.preguntasExtraidas,
+      const [imagenesGestores, imagenesEstudiantes, imagenesConsolidado] =
+        await Promise.all([
+          this.extraerImagenesDePDF(this.pdfGestores),
+          this.extraerImagenesDePDF(this.pdfEstudiantes),
+          this.extraerImagenesDePDF(this.pdfConsolidado),
+        ]);
+
+      Swal.fire({
+        title: 'Armando matriz...',
+        text: 'Generando el PDF final.',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      await this.construirMatrizPDF(
+        imagenesGestores,
+        imagenesEstudiantes,
+        imagenesConsolidado,
       );
     } catch (err: any) {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: err.message || 'Ocurrió un error al procesar el archivo.',
+        text: err.message || 'No se pudo generar la matriz.',
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#00d68f',
       });
     }
   }
 
-  private pegarAfirmaciones(
-    file: File,
-    nombreHoja: string,
-    colAfirmaciones: string,
-    preguntas: string[],
-  ): Promise<void> {
+  private extraerImagenesDePDF(file: File): Promise<string[]> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e: any) => {
+      reader.onload = async (e: any) => {
         try {
-          const datos = new Uint8Array(e.target.result);
-          const libro = XLSX.read(datos, { type: 'array' });
+          const arrayBuffer = e.target.result;
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          const imagenes: string[] = [];
 
-          // Verificar que la hoja existe
-          if (!libro.SheetNames.includes(nombreHoja)) {
-            Swal.fire({
-              icon: 'error',
-              title: 'Hoja no encontrada',
-              html: `No se encontró la hoja "<b>${nombreHoja}</b>" en el archivo.<br><br>
-                     <small>Hojas disponibles: <b>${libro.SheetNames.join(', ')}</b></small>`,
-              confirmButtonText: 'Entendido',
-              confirmButtonColor: '#00d68f',
-            });
-            reject(new Error('Hoja no encontrada'));
-            return;
+          for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 2.5 });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d')!;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            await page.render({
+              canvasContext: ctx,
+              viewport,
+              canvas, // ← agrega esto
+            } as any).promise;
+
+            // Cada página tiene 2 gráficas — cortar en mitad superior e inferior
+            const mitadH = Math.floor(canvas.height / 2);
+
+            // Gráfica superior
+            const top = document.createElement('canvas');
+            top.width = canvas.width;
+            top.height = mitadH;
+            const ctxTop = top.getContext('2d')!;
+            ctxTop.fillStyle = '#ffffff';
+            ctxTop.fillRect(0, 0, top.width, top.height);
+            ctxTop.drawImage(
+              canvas,
+              0,
+              0,
+              canvas.width,
+              mitadH,
+              0,
+              0,
+              canvas.width,
+              mitadH,
+            );
+            imagenes.push(top.toDataURL('image/jpeg', 0.92));
+
+            // Gráfica inferior
+            const bot = document.createElement('canvas');
+            bot.width = canvas.width;
+            bot.height = mitadH;
+            const ctxBot = bot.getContext('2d')!;
+            ctxBot.fillStyle = '#ffffff';
+            ctxBot.fillRect(0, 0, bot.width, bot.height);
+            ctxBot.drawImage(
+              canvas,
+              0,
+              mitadH,
+              canvas.width,
+              mitadH,
+              0,
+              0,
+              canvas.width,
+              mitadH,
+            );
+            imagenes.push(bot.toDataURL('image/jpeg', 0.92));
           }
 
-          const hoja = libro.Sheets[nombreHoja];
-          const jsonData: any[][] = XLSX.utils.sheet_to_json(hoja, {
-            header: 1,
-          });
-
-          // Encontrar la primera fila vacía debajo del título en la columna de afirmaciones
-          const idxCol = XLSX.utils.decode_col(colAfirmaciones);
-          let filaDestino = -1;
-
-          for (let i = 0; i < jsonData.length; i++) {
-            const celda = jsonData[i]?.[idxCol];
-            if (
-              celda === undefined ||
-              celda === null ||
-              String(celda).trim() === ''
-            ) {
-              filaDestino = i;
-              break;
-            }
-          }
-
-          // Si no encontró fila vacía, pega después de la última
-          if (filaDestino === -1) {
-            filaDestino = jsonData.length;
-          }
-
-          // Pegar preguntas en la columna indicada
-          preguntas.forEach((pregunta, i) => {
-            const celdaRef = `${colAfirmaciones}${filaDestino + i + 1}`;
-            hoja[celdaRef] = { v: pregunta, t: 's' };
-          });
-
-          // Actualizar el rango de la hoja
-          const rango = XLSX.utils.decode_range(hoja['!ref'] || 'A1');
-          const nuevaFilaMax = filaDestino + preguntas.length - 1;
-          if (nuevaFilaMax > rango.e.r) rango.e.r = nuevaFilaMax;
-          hoja['!ref'] = XLSX.utils.encode_range(rango);
-
-          // Guardar libro en memoria
-          this.libroTrabajoPaso2 = libro;
-
-          Swal.fire({
-            icon: 'success',
-            title: '¡Listo para descargar!',
-            html: `
-              <p>Se pegaron <b>${preguntas.length} afirmaciones</b> en la columna <b>${colAfirmaciones}</b> de la hoja "<b>${nombreHoja}</b>".</p>
-              <p style="margin-top:8px; font-size:0.85rem; color:#888">Presiona el botón para descargar el archivo modificado.</p>
-            `,
-            confirmButtonText: '⬇ Descargar Excel',
-            confirmButtonColor: '#00d68f',
-            showCancelButton: true,
-            cancelButtonText: 'Cerrar',
-          }).then((result) => {
-            if (result.isConfirmed) {
-              this.descargarExcel();
-            }
-          });
-
-          resolve();
+          resolve(imagenes);
         } catch (err) {
           reject(err);
         }
       };
-      reader.onerror = () => reject(new Error('Error de lectura'));
+      reader.onerror = () => reject(new Error('Error leyendo PDF'));
       reader.readAsArrayBuffer(file);
     });
   }
 
-  descargarExcel() {
-    if (!this.libroTrabajoPaso2) return;
-    const nombreBase = this.nombreArchivoPaso2
-      .replace('.xlsx', '')
-      .replace('.xls', '');
-    XLSX.writeFile(this.libroTrabajoPaso2, `${nombreBase}_modificado.xlsx`);
+  private async construirMatrizPDF(
+    imagenesGestores: string[],
+    imagenesEstudiantes: string[],
+    imagenesConsolidado: string[],
+  ) {
+    // A4 Landscape: 297 x 210 mm
+    const pdf = new jsPDF('l', 'mm', 'a4');
+    const pageW = 297;
+    const pageH = 210;
+    const mX = 4; // margen horizontal
+    const mY = 4; // margen vertical
+
+    // Anchos de columna
+    const colItem = 8;
+    const colAfirmacion = 45;
+    const colGrafica = (pageW - mX * 2 - colItem - colAfirmacion) / 3; // divide el resto en 3 iguales
+
+    const headerH = 9;
+    const filasPorPagina = 3;
+    const rowH = (pageH - mY * 2 - headerH) / filasPorPagina;
+
+    const totalPreguntas = this.preguntasExtraidas.length;
+
+    const dibujarCabecera = () => {
+      let x = mX;
+      const y = mY;
+
+      // Fondo cabecera
+      pdf.setFillColor(22, 30, 55);
+      pdf.rect(x, y, pageW - mX * 2, headerH, 'F');
+
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(6.5);
+      pdf.setFont('helvetica', 'bold');
+
+      const centrar = (texto: string, xCol: number, wCol: number) => {
+        pdf.text(texto, xCol + wCol / 2, y + headerH / 2 + 1, {
+          align: 'center',
+          baseline: 'middle',
+        });
+      };
+
+      centrar('ÍTEM', x, colItem);
+      x += colItem;
+      centrar('AFIRMACIÓN', x, colAfirmacion);
+      x += colAfirmacion;
+      centrar('GESTORES DEL CONOCIMIENTO', x, colGrafica);
+      x += colGrafica;
+      centrar('ESTUDIANTES', x, colGrafica);
+      x += colGrafica;
+      centrar('CONSOLIDADO DE LAS GRÁFICAS', x, colGrafica);
+    };
+
+    const dibujarFila = (
+      preguntaIdx: number,
+      filaEnPagina: number,
+      imgGestor: string | null,
+      imgEstudiante: string | null,
+      imgConsol: string | null,
+    ) => {
+      const y = mY + headerH + filaEnPagina * rowH;
+      let x = mX;
+
+      pdf.setDrawColor(200, 200, 200);
+      pdf.setLineWidth(0.25);
+
+      // ── ÍTEM ──
+      pdf.rect(x, y, colItem, rowH);
+      pdf.setTextColor(20, 20, 20);
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(String(preguntaIdx + 1), x + colItem / 2, y + rowH / 2, {
+        align: 'center',
+        baseline: 'middle',
+      });
+      x += colItem;
+
+      // ── AFIRMACIÓN ──
+      pdf.rect(x, y, colAfirmacion, rowH);
+      pdf.setFontSize(6);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(20, 20, 20);
+      const texto = this.preguntasExtraidas[preguntaIdx] || '';
+      const lineas = pdf.splitTextToSize(texto, colAfirmacion - 3);
+      // Centrar verticalmente el texto
+      const alturaTexto = lineas.length * 3.5;
+      const yTexto = y + (rowH - alturaTexto) / 2 + 3;
+      pdf.text(lineas, x + 2, yTexto);
+      x += colAfirmacion;
+
+      // Padding interno para imágenes
+      const pad = 2;
+      const imgW = colGrafica - pad * 2;
+      const imgH = rowH - pad * 2;
+
+      // ── GESTORES ──
+      pdf.rect(x, y, colGrafica, rowH);
+      if (imgGestor) {
+        pdf.addImage(imgGestor, 'JPEG', x + pad, y + pad, imgW, imgH);
+      }
+      x += colGrafica;
+
+      // ── ESTUDIANTES ──
+      pdf.rect(x, y, colGrafica, rowH);
+      if (imgEstudiante) {
+        pdf.addImage(imgEstudiante, 'JPEG', x + pad, y + pad, imgW, imgH);
+      }
+      x += colGrafica;
+
+      // ── CONSOLIDADO ──
+      pdf.rect(x, y, colGrafica, rowH);
+      if (imgConsol) {
+        pdf.addImage(imgConsol, 'JPEG', x + pad, y + pad, imgW, imgH);
+      }
+    };
+
+    // ── Generar páginas ──
+    for (let i = 0; i < totalPreguntas; i++) {
+      const filaEnPagina = i % filasPorPagina;
+
+      if (filaEnPagina === 0) {
+        if (i > 0) pdf.addPage();
+        dibujarCabecera();
+      }
+
+      dibujarFila(
+        i,
+        filaEnPagina,
+        imagenesGestores[i] ?? null,
+        imagenesEstudiantes[i] ?? null,
+        imagenesConsolidado[i] ?? null,
+      );
+    }
+
+    pdf.save('matriz-analisis.pdf');
+    Swal.close();
+
+    await Swal.fire({
+      icon: 'success',
+      title: '¡Matriz generada!',
+      html: `<p>Se generó la matriz con <b>${totalPreguntas} afirmaciones</b> en <b>${Math.ceil(totalPreguntas / filasPorPagina)} páginas</b>.</p>`,
+      confirmButtonText: '¡Listo!',
+      confirmButtonColor: '#00d68f',
+    });
   }
 
   volverPaso1() {

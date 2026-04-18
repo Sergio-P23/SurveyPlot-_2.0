@@ -24,7 +24,6 @@
 <ion-content [fullscreen]="true" class="ion-padding">
   <div class="vista-wrapper">
     <div class="vista-panel animate__animated animate__fadeIn">
-      <!-- Ícono y título -->
       <div class="form-icon-box">
         <ion-icon
           name="bar-chart-outline"
@@ -50,14 +49,12 @@
             ></ion-icon>
             <span *ngIf="pasoActual <= 1">1</span>
           </div>
-          <span class="step-label">Recopilacion de preguntas</span>
+          <span class="step-label">Recopilación de preguntas</span>
         </div>
         <div class="step-line" [class.completed]="pasoActual > 1"></div>
         <div class="step" [class.active]="pasoActual === 2">
-          <div class="step-circle">
-            <span>2</span>
-          </div>
-          <span class="step-label">Destino del Análisis</span>
+          <div class="step-circle"><span>2</span></div>
+          <span class="step-label">Subir PDFs y generar matriz</span>
         </div>
       </div>
 
@@ -71,20 +68,25 @@
             <ion-icon name="help-circle-outline"></ion-icon>
           </div>
           <div>
-            <h3 class="paso-titulo">Paso 1:</h3>
+            <h3 class="paso-titulo">Paso 1: Recopilación de Preguntas</h3>
             <p class="paso-descripcion">
-              Carga el archivo de preguntas y define el rango de celdas en las
-              que se encuentran
+              Carga el archivo Excel y define el rango de celdas donde están las
+              preguntas
             </p>
           </div>
         </div>
 
         <div class="form-group">
           <label class="form-label">Archivo Excel de Preguntas</label>
-          <div class="file-drop-zone" (click)="triggerFile1()">
+          <div
+            class="file-drop-zone"
+            [class.archivo-cargado]="archivoPaso1"
+            (click)="triggerFile1()"
+          >
             <ion-icon
               name="cloud-upload-outline"
               class="file-drop-icon"
+              [style.color]="archivoPaso1 ? 'rgb(0,214,143)' : ''"
             ></ion-icon>
             <span class="file-drop-text">{{ nombreArchivoPaso1 }}</span>
             <span class="file-drop-hint" *ngIf="!archivoPaso1"
@@ -106,7 +108,7 @@
             <input
               class="form-input"
               type="text"
-              placeholder="E1"
+              placeholder="Ej: E1"
               [(ngModel)]="celdaInicio"
             />
           </div>
@@ -115,7 +117,7 @@
             <input
               class="form-input"
               type="text"
-              placeholder="O1"
+              placeholder="Ej: O1"
               [(ngModel)]="celdaFin"
             />
           </div>
@@ -131,13 +133,15 @@
         *ngIf="pasoActual === 2"
         class="paso-container animate__animated animate__fadeIn"
       >
-        <!-- Resumen paso 1 colapsado -->
-        <div class="paso-completado" style="margin-bottom: 30px">
+        <div class="paso-completado">
           <ion-icon
             name="checkmark-circle-outline"
             class="check-icon"
           ></ion-icon>
-          <span>Recopilación de Preguntas completada</span>
+          <span
+            >{{ preguntasExtraidas.length }} preguntas extraídas
+            correctamente</span
+          >
           <ion-icon name="chevron-down-outline"></ion-icon>
         </div>
 
@@ -146,91 +150,96 @@
             <ion-icon name="bar-chart-outline"></ion-icon>
           </div>
           <div>
-            <h3 class="paso-titulo">Paso 2:</h3>
+            <h3 class="paso-titulo">Paso 2: Subir PDFs de Gráficas</h3>
             <p class="paso-descripcion">
-              Carga la plantilla de gráficas y mapea las columnas de destino
+              Sube los tres PDFs generados por la app para armar la matriz
             </p>
           </div>
         </div>
 
+        <!-- PDF Gestores -->
         <div class="form-group">
-          <label class="form-label">Archivo Excel de Gráficas</label>
-          <div class="file-drop-zone" (click)="triggerFile2()">
+          <label class="form-label">PDF Gestores del Conocimiento</label>
+          <div
+            class="file-drop-zone"
+            [class.archivo-cargado]="pdfGestores"
+            (click)="triggerPdfGestores()"
+          >
             <ion-icon
-              name="cloud-upload-outline"
+              name="document-outline"
               class="file-drop-icon"
+              [style.color]="pdfGestores ? 'rgb(0,214,143)' : ''"
             ></ion-icon>
-            <span class="file-drop-text">{{ nombreArchivoPaso2 }}</span>
-            <span class="file-drop-hint" *ngIf="!archivoPaso2"
+            <span class="file-drop-text">{{ nombrePdfGestores }}</span>
+            <span class="file-drop-hint" *ngIf="!pdfGestores"
               >o arrastra y suelta aquí</span
             >
             <input
-              #fileInput2
+              #pdfInputGestores
               type="file"
-              accept=".xlsx,.xls"
+              accept=".pdf"
               class="file-hidden"
-              (change)="onArchivoPaso2($event)"
+              (change)="onPdfGestores($event)"
             />
           </div>
-          <br />
+        </div>
 
-          <div class="form-group">
-            <label class="form-label">Nombre de la Hoja</label>
+        <!-- PDF Estudiantes -->
+        <div class="form-group">
+          <label class="form-label">PDF Estudiantes</label>
+          <div
+            class="file-drop-zone"
+            [class.archivo-cargado]="pdfEstudiantes"
+            (click)="triggerPdfEstudiantes()"
+          >
+            <ion-icon
+              name="document-outline"
+              class="file-drop-icon"
+              [style.color]="pdfEstudiantes ? 'rgb(0,214,143)' : ''"
+            ></ion-icon>
+            <span class="file-drop-text">{{ nombrePdfEstudiantes }}</span>
+            <span class="file-drop-hint" *ngIf="!pdfEstudiantes"
+              >o arrastra y suelta aquí</span
+            >
             <input
-              class="form-input"
-              type="text"
-              placeholder="Ej: Hoja1, Análisis, Sheet1"
-              [(ngModel)]="nombreHoja"
+              #pdfInputEstudiantes
+              type="file"
+              accept=".pdf"
+              class="file-hidden"
+              (change)="onPdfEstudiantes($event)"
             />
           </div>
         </div>
 
-        <div class="mapeo-section">
-          <h4 class="mapeo-titulo">MAPEO DE COLUMNAS</h4>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Columna de Afirmaciones</label>
-              <input
-                class="form-input"
-                type="text"
-                placeholder="Ej: Columna C"
-                [(ngModel)]="colAfirmaciones"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Columna Análisis Gestores</label>
-              <input
-                class="form-input"
-                type="text"
-                placeholder="Ej: Columna F"
-                [(ngModel)]="colGestores"
-              />
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Columna Análisis Estudiantes</label>
-              <input
-                class="form-input"
-                type="text"
-                placeholder="Ej: Columna G"
-                [(ngModel)]="colEstudiantes"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Columna Análisis Consolidado</label>
-              <input
-                class="form-input"
-                type="text"
-                placeholder="Ej: Columna I"
-                [(ngModel)]="colConsolidado"
-              />
-            </div>
+        <!-- PDF Consolidado -->
+        <div class="form-group">
+          <label class="form-label">PDF Consolidado</label>
+          <div
+            class="file-drop-zone"
+            [class.archivo-cargado]="pdfConsolidado"
+            (click)="triggerPdfConsolidado()"
+          >
+            <ion-icon
+              name="document-outline"
+              class="file-drop-icon"
+              [style.color]="pdfConsolidado ? 'rgb(0,214,143)' : ''"
+            ></ion-icon>
+            <span class="file-drop-text">{{ nombrePdfConsolidado }}</span>
+            <span class="file-drop-hint" *ngIf="!pdfConsolidado"
+              >o arrastra y suelta aquí</span
+            >
+            <input
+              #pdfInputConsolidado
+              type="file"
+              accept=".pdf"
+              class="file-hidden"
+              (change)="onPdfConsolidado($event)"
+            />
           </div>
         </div>
 
-        <button class="btn-generar analisis" (click)="generarReporte()">
-          Generar Reporte con IA
+        <button class="btn-generar analisis" (click)="generarMatriz()">
+          Generar Matriz PDF
         </button>
 
         <button class="btn-volver" (click)="volverPaso1()">

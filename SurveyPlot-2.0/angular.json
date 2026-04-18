@@ -23,16 +23,20 @@
               "browser": ""
             },
             "index": "src/index.html",
-            "polyfills": [
-              "src/polyfills.ts"
-            ],
+            "polyfills": ["src/polyfills.ts"],
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
+              "src/favicon.ico",
               {
                 "glob": "**/*",
                 "input": "src/assets",
                 "output": "assets"
+              },
+              {
+                "glob": "pdf.worker.mjs",
+                "input": "node_modules/pdfjs-dist/build/",
+                "output": "assets/"
               }
             ],
             "styles": ["src/global.scss", "src/theme/variables.scss"],
@@ -129,9 +133,7 @@
     }
   },
   "cli": {
-    "schematicCollections": [
-      "@ionic/angular-toolkit"
-    ],
+    "schematicCollections": ["@ionic/angular-toolkit"],
     "analytics": false
   },
   "schematics": {

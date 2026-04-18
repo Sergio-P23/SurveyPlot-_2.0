@@ -360,3 +360,10 @@ ion-toolbar {
     padding: 14px;
   }
 }
+
+.file-drop-zone {
+  &.archivo-cargado {
+    border-color: rgba(0, 214, 143, 0.5);
+    background: rgba(0, 214, 143, 0.04);
+  }
+}
