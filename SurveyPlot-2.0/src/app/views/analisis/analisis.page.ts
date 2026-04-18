@@ -172,11 +172,12 @@ export class AnalisisPage {
     const colFin = matchFin[1];
     const filaFin = parseInt(matchFin[2]);
 
-    if (filaInicio !== filaFin) {
+    // Validar rango válido (fila o columna)
+    if (filaInicio !== filaFin && colInicio !== colFin) {
       await Swal.fire({
         icon: 'error',
-        title: 'Filas distintas',
-        text: `La fila de inicio (${filaInicio}) y la de fin (${filaFin}) deben ser iguales.`,
+        title: 'Rango inválido',
+        text: `Debe ser una sola fila (E1 → O1) o una sola columna (B12 → B22).`,
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#00d68f',
       });
@@ -205,9 +206,8 @@ export class AnalisisPage {
     try {
       const preguntas = await this.extraerPreguntas(
         this.archivoPaso1,
-        colInicio,
-        colFin,
-        filaInicio,
+        celdaInicioUpper,
+        celdaFinUpper,
       );
 
       if (preguntas.length === 0) {
@@ -250,35 +250,56 @@ export class AnalisisPage {
 
   private extraerPreguntas(
     file: File,
-    colInicio: string,
-    colFin: string,
-    fila: number,
+    inicio: string,
+    fin: string,
   ): Promise<string[]> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
+
       reader.onload = (e: any) => {
         try {
           const datos = new Uint8Array(e.target.result);
           const libro = XLSX.read(datos, { type: 'array' });
           const hoja = libro.Sheets[libro.SheetNames[0]];
+
           const jsonData: any[][] = XLSX.utils.sheet_to_json(hoja, {
             header: 1,
           });
-          const filaIndex = fila - 1;
-          const idxInicio = XLSX.utils.decode_col(colInicio);
-          const idxFin = XLSX.utils.decode_col(colFin);
+
+          const celdaInicio = XLSX.utils.decode_cell(inicio);
+          const celdaFin = XLSX.utils.decode_cell(fin);
+
           const preguntas: string[] = [];
-          for (let col = idxInicio; col <= idxFin; col++) {
-            const valor = jsonData[filaIndex]?.[col];
-            if (valor !== undefined && valor !== null && valor !== '') {
-              preguntas.push(String(valor).trim());
+
+          // 🔹 Caso 1: MISMA FILA (horizontal)
+          if (celdaInicio.r === celdaFin.r) {
+            for (let col = celdaInicio.c; col <= celdaFin.c; col++) {
+              const valor = jsonData[celdaInicio.r]?.[col];
+              if (valor) preguntas.push(String(valor).trim());
             }
           }
+
+          // 🔹 Caso 2: MISMA COLUMNA (vertical)
+          else if (celdaInicio.c === celdaFin.c) {
+            for (let row = celdaInicio.r; row <= celdaFin.r; row++) {
+              const valor = jsonData[row]?.[celdaInicio.c];
+              if (valor) preguntas.push(String(valor).trim());
+            }
+          }
+
+          // ❌ Caso inválido
+          else {
+            return reject(
+              new Error('El rango debe ser una sola fila o una sola columna'),
+            );
+          }
+
           resolve(preguntas);
         } catch (err) {
           reject(err);
         }
       };
+
       reader.onerror = () => reject(new Error('Error de lectura'));
       reader.readAsArrayBuffer(file);
     });
