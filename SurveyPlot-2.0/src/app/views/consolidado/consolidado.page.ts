@@ -87,7 +87,6 @@ export class ConsolidadoPage {
   }
 
   async generarGraficas() {
-    // Validar nombre encuesta 1
     if (!this.nombreEncuesta1.trim()) {
       await Swal.fire({
         icon: 'warning',
@@ -99,7 +98,6 @@ export class ConsolidadoPage {
       return;
     }
 
-    // Validar nombre encuesta 2
     if (!this.nombreEncuesta2.trim()) {
       await Swal.fire({
         icon: 'warning',
@@ -111,7 +109,6 @@ export class ConsolidadoPage {
       return;
     }
 
-    // Validar archivos
     if (!this.archivo1 && !this.archivo2) {
       await Swal.fire({
         icon: 'warning',
@@ -143,7 +140,6 @@ export class ConsolidadoPage {
       return;
     }
 
-    // Validar columnas encuesta 1
     const col1Inicio = this.columnaInicio1.trim().toUpperCase();
     const col1Fin = this.columnaFin1.trim().toUpperCase();
     if (!col1Inicio || !/^[A-Z]$/.test(col1Inicio)) {
@@ -167,7 +163,6 @@ export class ConsolidadoPage {
       return;
     }
 
-    // Validar columnas encuesta 2
     const col2Inicio = this.columnaInicio2.trim().toUpperCase();
     const col2Fin = this.columnaFin2.trim().toUpperCase();
     if (!col2Inicio || !/^[A-Z]$/.test(col2Inicio)) {
@@ -214,7 +209,6 @@ export class ConsolidadoPage {
       return;
     }
 
-    // Validar filas
     const fil1Inicio = parseInt(this.filaInicio1);
     const fil1Fin = parseInt(this.filaFin1);
     const fil2Inicio = parseInt(this.filaInicio2);
@@ -281,7 +275,6 @@ export class ConsolidadoPage {
       return;
     }
 
-    // Confirmación
     const totalPreguntas1 =
       abecedario.indexOf(col1Fin) - abecedario.indexOf(col1Inicio) + 1;
     const totalPreguntas2 =
@@ -311,7 +304,6 @@ export class ConsolidadoPage {
 
     if (!confirmar.isConfirmed) return;
 
-    // Resetear respuestas
     this.respuestasArchivo1 = null;
     this.respuestasArchivo2 = null;
 
@@ -465,11 +457,8 @@ export class ConsolidadoPage {
 
       const canvas = document.createElement('canvas');
       canvas.id = `grafica-cons-${index}`;
-      canvas.style.width = '100%';
-      canvas.style.maxWidth = '100%';
-      canvas.style.height = '100%';
-      canvas.style.maxHeight = '340px';
-      canvas.style.display = 'block';
+      canvas.style.maxHeight = '300px';
+
       col.appendChild(canvas);
       container.appendChild(col);
 
@@ -545,6 +534,7 @@ export class ConsolidadoPage {
     offscreen.width = 800;
     offscreen.height = 500;
     const ctx = offscreen.getContext('2d')!;
+
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, offscreen.width, offscreen.height);
 
@@ -579,15 +569,15 @@ export class ConsolidadoPage {
             display: true,
             text: `Respuestas - Pregunta ${index + 1}`,
             color: '#000000',
-            font: { size: 13, weight: 'bold', family: 'Roboto' },
-            padding: { bottom: 8 },
+            font: { size: 18, weight: 'bold', family: 'Roboto' }, // ← igual que individual
+            padding: { bottom: 10 },
           },
           legend: {
             position: 'bottom',
             labels: {
               color: '#000000',
-              font: { size: 9, family: 'Roboto' },
-              padding: 6,
+              font: { size: 12, family: 'Roboto' }, // ← igual que individual
+              padding: 8,
               generateLabels: (chart: any) => {
                 const d = chart.data;
                 return (d.labels as string[]).map((label, i) => {
@@ -626,16 +616,8 @@ export class ConsolidadoPage {
     return imgData;
   }
 
-  async descargarPDF() {
-    Swal.fire({
-      title: 'Generando PDF...',
-      text: 'Por favor espera.',
-      allowOutsideClick: false,
-      didOpen: () => Swal.showLoading(),
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
+  // ← NUEVA: igual que individual
+  private buildPDF(): jsPDF {
     const canvases = document.querySelectorAll<HTMLCanvasElement>(
       "canvas[id^='grafica-cons-']",
     );
@@ -646,7 +628,7 @@ export class ConsolidadoPage {
       marginY = 20,
       gap = 10;
     const imgWidth = pageWidth - marginX * 2;
-    const imgHeight = (pageHeight - marginY * 2 - gap) / 2;
+    const imgHeight = (pageHeight - marginY * 2 - gap) / 2 - 5; // ← igual que individual
     let row = 0;
 
     canvases.forEach((canvas, index) => {
@@ -665,7 +647,21 @@ export class ConsolidadoPage {
       );
       row++;
     });
+    return pdf;
+  }
 
+  async descargarPDF() {
+    Swal.fire({
+      title: 'Generando PDF...',
+      text: 'Por favor espera.',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // ← Ahora usa buildPDF() igual que individual
+    const pdf = this.buildPDF();
     const nombre = `graficas consolidadas - ${this.nombreEncuesta1} & ${this.nombreEncuesta2}.pdf`;
     pdf.save(nombre);
     Swal.close();
