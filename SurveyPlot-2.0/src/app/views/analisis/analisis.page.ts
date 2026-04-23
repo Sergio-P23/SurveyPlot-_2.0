@@ -23,7 +23,7 @@ import {
 } from 'ionicons/icons';
 import Swal from 'sweetalert2';
 import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
+import ExcelJS from 'exceljs';
 import * as pdfjsLib from 'pdfjs-dist';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -172,12 +172,11 @@ export class AnalisisPage {
     const colFin = matchFin[1];
     const filaFin = parseInt(matchFin[2]);
 
-    // Validar rango válido (fila o columna)
     if (filaInicio !== filaFin && colInicio !== colFin) {
       await Swal.fire({
         icon: 'error',
         title: 'Rango inválido',
-        text: `Debe ser una sola fila (E1 → O1) o una sola columna (B12 → B22).`,
+        text: 'Debe ser una sola fila (E1 → O1) o una sola columna (B12 → B22).',
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#00d68f',
       });
@@ -255,42 +254,32 @@ export class AnalisisPage {
   ): Promise<string[]> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-
       reader.onload = (e: any) => {
         try {
           const datos = new Uint8Array(e.target.result);
           const libro = XLSX.read(datos, { type: 'array' });
           const hoja = libro.Sheets[libro.SheetNames[0]];
-
           const jsonData: any[][] = XLSX.utils.sheet_to_json(hoja, {
             header: 1,
           });
 
           const celdaInicio = XLSX.utils.decode_cell(inicio);
           const celdaFin = XLSX.utils.decode_cell(fin);
-
           const preguntas: string[] = [];
 
-          // 🔹 Caso 1: MISMA FILA (horizontal)
           if (celdaInicio.r === celdaFin.r) {
             for (let col = celdaInicio.c; col <= celdaFin.c; col++) {
               const valor = jsonData[celdaInicio.r]?.[col];
               if (valor) preguntas.push(String(valor).trim());
             }
-          }
-
-          // 🔹 Caso 2: MISMA COLUMNA (vertical)
-          else if (celdaInicio.c === celdaFin.c) {
+          } else if (celdaInicio.c === celdaFin.c) {
             for (let row = celdaInicio.r; row <= celdaFin.r; row++) {
               const valor = jsonData[row]?.[celdaInicio.c];
               if (valor) preguntas.push(String(valor).trim());
             }
-          }
-
-          // ❌ Caso inválido
-          else {
+          } else {
             return reject(
-              new Error('El rango debe ser una sola fila o una sola columna'),
+              new Error('El rango debe ser una sola fila o columna'),
             );
           }
 
@@ -299,7 +288,6 @@ export class AnalisisPage {
           reject(err);
         }
       };
-
       reader.onerror = () => reject(new Error('Error de lectura'));
       reader.readAsArrayBuffer(file);
     });
@@ -354,14 +342,14 @@ export class AnalisisPage {
         ]);
 
       Swal.fire({
-        title: 'Armando matriz...',
-        text: 'Generando el PDF final.',
+        title: 'Armando matriz Excel...',
+        text: 'Generando el archivo.',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading(),
       });
 
       await new Promise((resolve) => setTimeout(resolve, 100));
-      await this.construirMatrizPDF(
+      await this.construirMatrizExcel(
         imagenesGestores,
         imagenesEstudiantes,
         imagenesConsolidado,
@@ -396,16 +384,11 @@ export class AnalisisPage {
             const ctx = canvas.getContext('2d')!;
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            await page.render({
-              canvasContext: ctx,
-              viewport,
-              canvas, // ← agrega esto
-            } as any).promise;
+            await page.render({ canvasContext: ctx, viewport, canvas } as any)
+              .promise;
 
-            // Cada página tiene 2 gráficas — cortar en mitad superior e inferior
             const mitadH = Math.floor(canvas.height / 2);
 
-            // Gráfica superior
             const top = document.createElement('canvas');
             top.width = canvas.width;
             top.height = mitadH;
@@ -425,7 +408,6 @@ export class AnalisisPage {
             );
             imagenes.push(top.toDataURL('image/jpeg', 0.92));
 
-            // Gráfica inferior
             const bot = document.createElement('canvas');
             bot.width = canvas.width;
             bot.height = mitadH;
@@ -456,147 +438,190 @@ export class AnalisisPage {
     });
   }
 
-  private async construirMatrizPDF(
+  private async construirMatrizExcel(
     imagenesGestores: string[],
     imagenesEstudiantes: string[],
     imagenesConsolidado: string[],
   ) {
-    // A4 Landscape: 297 x 210 mm
-    const pdf = new jsPDF('l', 'mm', 'a4');
-    const pageW = 297;
-    const pageH = 210;
-    const mX = 4; // margen horizontal
-    const mY = 4; // margen vertical
-
-    // Anchos de columna
-    const colItem = 8;
-    const colAfirmacion = 45;
-    const colGrafica = (pageW - mX * 2 - colItem - colAfirmacion) / 3; // divide el resto en 3 iguales
-
-    const headerH = 9;
-    const filasPorPagina = 3;
-    const rowH = (pageH - mY * 2 - headerH) / filasPorPagina;
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Matriz Análisis', {
+      pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
+    });
 
     const totalPreguntas = this.preguntasExtraidas.length;
 
-    const dibujarCabecera = () => {
-      let x = mX;
-      const y = mY;
+    // Orden columnas:
+    // A: Ítem
+    // B: Afirmación
+    // C: Gráfica Gestores
+    // D: Gráfica Estudiantes
+    // E: Análisis Gestores (vacío)
+    // F: Análisis Estudiantes (vacío)
+    // G: Gráfica Consolidado
+    // H: Análisis Consolidado (vacío)
 
-      // Fondo cabecera
-      pdf.setFillColor(22, 30, 55);
-      pdf.rect(x, y, pageW - mX * 2, headerH, 'F');
+    sheet.columns = [
+      { key: 'item', width: 6 },
+      { key: 'afirmacion', width: 42 },
+      { key: 'grafGestores', width: 36 },
+      { key: 'grafEstud', width: 36 },
+      { key: 'anGestores', width: 32 },
+      { key: 'anEstud', width: 32 },
+      { key: 'grafConsol', width: 36 },
+      { key: 'anConsol', width: 32 },
+    ];
 
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(6.5);
-      pdf.setFont('helvetica', 'bold');
+    // ── Fila 1: cabecera principal ──
+    const cabecera = sheet.addRow([
+      'ÍTEM',
+      'AFIRMACIÓN',
+      'GESTORES DEL CONOCIMIENTO Y APRENDIZAJE',
+      'ESTUDIANTES',
+      'ANÁLISIS GRÁFICA GESTORES DEL CONOCIMIENTO Y APRENDIZAJE',
+      'ANÁLISIS GRÁFICA ESTUDIANTES',
+      'CONSOLIDADO DE LAS GRÁFICAS',
+      'ANÁLISIS GRÁFICA CONSOLIDADOS',
+    ]);
 
-      const centrar = (texto: string, xCol: number, wCol: number) => {
-        pdf.text(texto, xCol + wCol / 2, y + headerH / 2 + 1, {
-          align: 'center',
-          baseline: 'middle',
+    cabecera.height = 35;
+    cabecera.eachCell((cell) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF16213A' },
+      };
+      cell.font = {
+        bold: true,
+        color: { argb: 'FFFFFFFF' },
+        size: 8,
+        name: 'Calibri',
+      };
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+        wrapText: true,
+      };
+      cell.border = {
+        top: { style: 'medium', color: { argb: 'FF8888AA' } },
+        left: { style: 'medium', color: { argb: 'FF8888AA' } },
+        bottom: { style: 'medium', color: { argb: 'FF8888AA' } },
+        right: { style: 'medium', color: { argb: 'FF8888AA' } },
+      };
+    });
+
+    // ── Fila 2: subcabecera POBLACIÓN TOTAL: N ──
+    const subCabecera = sheet.addRow([
+      '',
+      '',
+      '',
+      '',
+      'POBLACIÓN TOTAL: N',
+      'POBLACIÓN TOTAL: N',
+      '',
+      'POBLACIÓN TOTAL: N',
+    ]);
+
+    subCabecera.height = 18;
+    subCabecera.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      const conSub = [5, 6, 8].includes(colNumber);
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: conSub ? 'FF1E2D4A' : 'FF16213A' },
+      };
+      cell.font = { color: { argb: 'FFAABBCC' }, size: 7, name: 'Calibri' };
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+        wrapText: true,
+      };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF8888AA' } },
+        left: { style: 'thin', color: { argb: 'FF8888AA' } },
+        bottom: { style: 'medium', color: { argb: 'FF8888AA' } },
+        right: { style: 'thin', color: { argb: 'FF8888AA' } },
+      };
+    });
+
+    const rowHeightPts = 165;
+
+    for (let i = 0; i < totalPreguntas; i++) {
+      const rowNum = i + 3; // filas 1 y 2 son cabeceras
+
+      const fila = sheet.addRow([
+        i + 1,
+        this.preguntasExtraidas[i] || '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ]);
+
+      fila.height = rowHeightPts;
+
+      fila.getCell(1).font = { bold: true, size: 10, name: 'Calibri' };
+      fila.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+      fila.getCell(2).font = { size: 8, name: 'Calibri' };
+      fila.getCell(2).alignment = {
+        vertical: 'middle',
+        horizontal: 'left',
+        wrapText: true,
+      };
+
+      fila.eachCell({ includeEmpty: true }, (cell) => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          bottom: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          right: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+        };
+      });
+
+      // ── Insertar imágenes ──
+      const insertarImagen = (base64: string, colIndex: number) => {
+        const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
+        const imgId = workbook.addImage({
+          base64: base64Data,
+          extension: 'jpeg',
+        });
+        sheet.addImage(imgId, {
+          tl: { col: colIndex - 0.95, row: rowNum - 0.95 } as any,
+          ext: { width: 215, height: 158 },
+          editAs: 'oneCell',
         });
       };
 
-      centrar('ÍTEM', x, colItem);
-      x += colItem;
-      centrar('AFIRMACIÓN', x, colAfirmacion);
-      x += colAfirmacion;
-      centrar('GESTORES DEL CONOCIMIENTO', x, colGrafica);
-      x += colGrafica;
-      centrar('ESTUDIANTES', x, colGrafica);
-      x += colGrafica;
-      centrar('CONSOLIDADO DE LAS GRÁFICAS', x, colGrafica);
-    };
-
-    const dibujarFila = (
-      preguntaIdx: number,
-      filaEnPagina: number,
-      imgGestor: string | null,
-      imgEstudiante: string | null,
-      imgConsol: string | null,
-    ) => {
-      const y = mY + headerH + filaEnPagina * rowH;
-      let x = mX;
-
-      pdf.setDrawColor(200, 200, 200);
-      pdf.setLineWidth(0.25);
-
-      // ── ÍTEM ──
-      pdf.rect(x, y, colItem, rowH);
-      pdf.setTextColor(20, 20, 20);
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(String(preguntaIdx + 1), x + colItem / 2, y + rowH / 2, {
-        align: 'center',
-        baseline: 'middle',
-      });
-      x += colItem;
-
-      // ── AFIRMACIÓN ──
-      pdf.rect(x, y, colAfirmacion, rowH);
-      pdf.setFontSize(6);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(20, 20, 20);
-      const texto = this.preguntasExtraidas[preguntaIdx] || '';
-      const lineas = pdf.splitTextToSize(texto, colAfirmacion - 3);
-      // Centrar verticalmente el texto
-      const alturaTexto = lineas.length * 3.5;
-      const yTexto = y + (rowH - alturaTexto) / 2 + 3;
-      pdf.text(lineas, x + 2, yTexto);
-      x += colAfirmacion;
-
-      // Padding interno para imágenes
-      const pad = 2;
-      const imgW = colGrafica - pad * 2;
-      const imgH = rowH - pad * 2;
-
-      // ── GESTORES ──
-      pdf.rect(x, y, colGrafica, rowH);
-      if (imgGestor) {
-        pdf.addImage(imgGestor, 'JPEG', x + pad, y + pad, imgW, imgH);
-      }
-      x += colGrafica;
-
-      // ── ESTUDIANTES ──
-      pdf.rect(x, y, colGrafica, rowH);
-      if (imgEstudiante) {
-        pdf.addImage(imgEstudiante, 'JPEG', x + pad, y + pad, imgW, imgH);
-      }
-      x += colGrafica;
-
-      // ── CONSOLIDADO ──
-      pdf.rect(x, y, colGrafica, rowH);
-      if (imgConsol) {
-        pdf.addImage(imgConsol, 'JPEG', x + pad, y + pad, imgW, imgH);
-      }
-    };
-
-    // ── Generar páginas ──
-    for (let i = 0; i < totalPreguntas; i++) {
-      const filaEnPagina = i % filasPorPagina;
-
-      if (filaEnPagina === 0) {
-        if (i > 0) pdf.addPage();
-        dibujarCabecera();
-      }
-
-      dibujarFila(
-        i,
-        filaEnPagina,
-        imagenesGestores[i] ?? null,
-        imagenesEstudiantes[i] ?? null,
-        imagenesConsolidado[i] ?? null,
-      );
+      if (imagenesGestores[i]) insertarImagen(imagenesGestores[i], 3); // col C
+      if (imagenesEstudiantes[i]) insertarImagen(imagenesEstudiantes[i], 4); // col D
+      if (imagenesConsolidado[i]) insertarImagen(imagenesConsolidado[i], 7); // col G
     }
 
-    pdf.save('matriz-analisis.pdf');
+    // ── Descargar ──
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'matriz-analisis.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+
     Swal.close();
 
     await Swal.fire({
       icon: 'success',
       title: '¡Matriz generada!',
-      html: `<p>Se generó la matriz con <b>${totalPreguntas} afirmaciones</b> en <b>${Math.ceil(totalPreguntas / filasPorPagina)} páginas</b>.</p>`,
+      html: `
+        <p>Se generó la matriz Excel con <b>${totalPreguntas} afirmaciones</b>.</p>
+        <p style="font-size:0.85rem; color:#888; margin-top:8px">
+          Las columnas E, F y H están vacías para completar el análisis.
+        </p>
+      `,
       confirmButtonText: '¡Listo!',
       confirmButtonColor: '#00d68f',
     });
