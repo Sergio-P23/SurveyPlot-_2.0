@@ -33,8 +33,6 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
-
 interface DatosLikert {
   ta: number;
   cantTa: number;
@@ -47,6 +45,12 @@ interface DatosLikert {
   td: number;
   cantTd: number;
   total: number;
+}
+
+// Resultado por página: imagen completa + imagen solo de la leyenda (para OCR)
+interface PaginaExtraida {
+  imagenCompleta: string; // base64 página completa → va al Excel
+  imagenLeyenda: string; // base64 franja inferior → va al OCR
 }
 
 @Component({
@@ -73,20 +77,19 @@ export class AnalisisPage {
   @ViewChild('pdfInputEstudiantes') pdfInputEstudiantes!: ElementRef;
   @ViewChild('pdfInputConsolidado') pdfInputConsolidado!: ElementRef;
 
-  pasoActual: number = 1;
-
+  pasoActual = 1;
   archivoPaso1: File | null = null;
-  nombreArchivoPaso1: string = 'Elegir archivo Excel';
-  celdaInicio: string = '';
-  celdaFin: string = '';
+  nombreArchivoPaso1 = 'Elegir archivo Excel';
+  celdaInicio = '';
+  celdaFin = '';
   preguntasExtraidas: string[] = [];
 
   pdfGestores: File | null = null;
-  nombrePdfGestores: string = 'Elegir PDF de Gestores';
+  nombrePdfGestores = 'Elegir PDF de Gestores';
   pdfEstudiantes: File | null = null;
-  nombrePdfEstudiantes: string = 'Elegir PDF de Estudiantes';
+  nombrePdfEstudiantes = 'Elegir PDF de Estudiantes';
   pdfConsolidado: File | null = null;
-  nombrePdfConsolidado: string = 'Elegir PDF Consolidado';
+  nombrePdfConsolidado = 'Elegir PDF Consolidado';
 
   constructor() {
     addIcons({
@@ -114,35 +117,37 @@ export class AnalisisPage {
   }
 
   onArchivoPaso1(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (file) {
-      this.archivoPaso1 = file;
-      this.nombreArchivoPaso1 = file.name;
+    const f = (event.target as HTMLInputElement).files?.[0];
+    if (f) {
+      this.archivoPaso1 = f;
+      this.nombreArchivoPaso1 = f.name;
     }
   }
   onPdfGestores(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (file) {
-      this.pdfGestores = file;
-      this.nombrePdfGestores = file.name;
+    const f = (event.target as HTMLInputElement).files?.[0];
+    if (f) {
+      this.pdfGestores = f;
+      this.nombrePdfGestores = f.name;
     }
   }
   onPdfEstudiantes(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (file) {
-      this.pdfEstudiantes = file;
-      this.nombrePdfEstudiantes = file.name;
+    const f = (event.target as HTMLInputElement).files?.[0];
+    if (f) {
+      this.pdfEstudiantes = f;
+      this.nombrePdfEstudiantes = f.name;
     }
   }
   onPdfConsolidado(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (file) {
-      this.pdfConsolidado = file;
-      this.nombrePdfConsolidado = file.name;
+    const f = (event.target as HTMLInputElement).files?.[0];
+    if (f) {
+      this.pdfConsolidado = f;
+      this.nombrePdfConsolidado = f.name;
     }
   }
 
-  // ─── PASO 1 ───────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════
+  // PASO 1
+  // ═══════════════════════════════════════════════════════════════
 
   async irPaso2() {
     if (!this.archivoPaso1) {
@@ -150,64 +155,49 @@ export class AnalisisPage {
         icon: 'warning',
         title: 'Archivo requerido',
         text: 'Selecciona el archivo Excel de preguntas.',
-        confirmButtonText: 'Entendido',
         confirmButtonColor: '#00d68f',
       });
       return;
     }
-
     const regexCelda = /^[A-Za-z]+\d+$/;
-    if (!this.celdaInicio.trim() || !regexCelda.test(this.celdaInicio.trim())) {
+    if (!regexCelda.test(this.celdaInicio.trim())) {
       await Swal.fire({
         icon: 'warning',
         title: 'Celda de inicio inválida',
-        text: 'Ingresa una celda válida como "E1" o "E3".',
-        confirmButtonText: 'Entendido',
+        text: 'Ej: "E1"',
         confirmButtonColor: '#00d68f',
       });
       return;
     }
-    if (!this.celdaFin.trim() || !regexCelda.test(this.celdaFin.trim())) {
+    if (!regexCelda.test(this.celdaFin.trim())) {
       await Swal.fire({
         icon: 'warning',
         title: 'Celda de fin inválida',
-        text: 'Ingresa una celda válida como "O1" o "O3".',
-        confirmButtonText: 'Entendido',
+        text: 'Ej: "O1"',
         confirmButtonColor: '#00d68f',
       });
       return;
     }
 
-    const celdaInicioUpper = this.celdaInicio.trim().toUpperCase();
-    const celdaFinUpper = this.celdaFin.trim().toUpperCase();
-    const matchInicio = celdaInicioUpper.match(/^([A-Z]+)(\d+)$/);
-    const matchFin = celdaFinUpper.match(/^([A-Z]+)(\d+)$/);
-    if (!matchInicio || !matchFin) return;
+    const ini = this.celdaInicio.trim().toUpperCase();
+    const fin = this.celdaFin.trim().toUpperCase();
+    const mI = ini.match(/^([A-Z]+)(\d+)$/)!;
+    const mF = fin.match(/^([A-Z]+)(\d+)$/)!;
 
-    const colInicio = matchInicio[1];
-    const filaInicio = parseInt(matchInicio[2]);
-    const colFin = matchFin[1];
-    const filaFin = parseInt(matchFin[2]);
-
-    if (filaInicio !== filaFin && colInicio !== colFin) {
+    if (parseInt(mI[2]) !== parseInt(mF[2]) && mI[1] !== mF[1]) {
       await Swal.fire({
         icon: 'error',
         title: 'Rango inválido',
-        text: 'Debe ser una sola fila (E1 → O1) o una sola columna (B12 → B22).',
-        confirmButtonText: 'Entendido',
+        text: 'Debe ser una sola fila o columna.',
         confirmButtonColor: '#00d68f',
       });
       return;
     }
-
-    const idxColInicio = XLSX.utils.decode_col(colInicio);
-    const idxColFin = XLSX.utils.decode_col(colFin);
-    if (idxColInicio > idxColFin) {
+    if (XLSX.utils.decode_col(mI[1]) > XLSX.utils.decode_col(mF[1])) {
       await Swal.fire({
         icon: 'error',
         title: 'Rango incorrecto',
-        text: `La columna "${colInicio}" no puede ser mayor que "${colFin}".`,
-        confirmButtonText: 'Entendido',
+        text: `Columna inicio > fin.`,
         confirmButtonColor: '#00d68f',
       });
       return;
@@ -222,43 +212,34 @@ export class AnalisisPage {
     try {
       const preguntas = await this.extraerPreguntas(
         this.archivoPaso1,
-        celdaInicioUpper,
-        celdaFinUpper,
+        ini,
+        fin,
       );
-
-      if (preguntas.length === 0) {
+      if (!preguntas.length) {
         await Swal.fire({
           icon: 'error',
           title: 'Sin preguntas',
-          text: `No se encontraron datos en el rango ${celdaInicioUpper} → ${celdaFinUpper}.`,
-          confirmButtonText: 'Entendido',
+          text: `No se encontraron datos en ${ini}→${fin}.`,
           confirmButtonColor: '#00d68f',
         });
         return;
       }
-
       this.preguntasExtraidas = preguntas;
-
       await Swal.fire({
         icon: 'success',
         title: '¡Preguntas extraídas!',
-        html: `
-          <p>Se encontraron <b>${preguntas.length} preguntas</b>:</p>
-          <div style="max-height:200px;overflow-y:auto;text-align:left;margin-top:10px;">
-            ${preguntas.map((p, i) => `<div style="padding:4px 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:0.85rem;"><b>${i + 1}.</b> ${p}</div>`).join('')}
-          </div>
-        `,
+        html: `<p><b>${preguntas.length} preguntas</b>:</p>
+          <div style="max-height:200px;overflow-y:auto;text-align:left;margin-top:10px">
+            ${preguntas.map((p, i) => `<div style="padding:4px 0;border-bottom:1px solid #eee;font-size:.85rem"><b>${i + 1}.</b> ${p}</div>`).join('')}
+          </div>`,
         confirmButtonText: 'Continuar al Paso 2',
         confirmButtonColor: '#00d68f',
       });
-
       this.pasoActual = 2;
     } catch {
       Swal.fire({
         icon: 'error',
         title: 'Error al leer',
-        text: 'No se pudo leer el archivo.',
-        confirmButtonText: 'Entendido',
         confirmButtonColor: '#00d68f',
       });
     }
@@ -273,52 +254,47 @@ export class AnalisisPage {
       const reader = new FileReader();
       reader.onload = (e: ProgressEvent<FileReader>) => {
         try {
-          const datos = new Uint8Array(e.target!.result as ArrayBuffer);
-          const libro = XLSX.read(datos, { type: 'array' });
-          const hoja = libro.Sheets[libro.SheetNames[0]];
-          const jsonData: any[][] = XLSX.utils.sheet_to_json(hoja, {
-            header: 1,
-          });
-
-          const celdaInicio = XLSX.utils.decode_cell(inicio);
-          const celdaFin = XLSX.utils.decode_cell(fin);
-          const preguntas: string[] = [];
-
-          if (celdaInicio.r === celdaFin.r) {
-            for (let col = celdaInicio.c; col <= celdaFin.c; col++) {
-              const valor = jsonData[celdaInicio.r]?.[col];
-              if (valor) preguntas.push(String(valor).trim());
-            }
-          } else if (celdaInicio.c === celdaFin.c) {
-            for (let row = celdaInicio.r; row <= celdaFin.r; row++) {
-              const valor = jsonData[row]?.[celdaInicio.c];
-              if (valor) preguntas.push(String(valor).trim());
+          const libro = XLSX.read(
+            new Uint8Array(e.target!.result as ArrayBuffer),
+            { type: 'array' },
+          );
+          const jsonData: any[][] = XLSX.utils.sheet_to_json(
+            libro.Sheets[libro.SheetNames[0]],
+            { header: 1 },
+          );
+          const ci = XLSX.utils.decode_cell(inicio);
+          const cf = XLSX.utils.decode_cell(fin);
+          const out: string[] = [];
+          if (ci.r === cf.r) {
+            for (let c = ci.c; c <= cf.c; c++) {
+              const v = jsonData[ci.r]?.[c];
+              if (v) out.push(String(v).trim());
             }
           } else {
-            return reject(
-              new Error('El rango debe ser una sola fila o columna'),
-            );
+            for (let r = ci.r; r <= cf.r; r++) {
+              const v = jsonData[r]?.[ci.c];
+              if (v) out.push(String(v).trim());
+            }
           }
-
-          resolve(preguntas);
+          resolve(out);
         } catch (err) {
           reject(err);
         }
       };
-      reader.onerror = () => reject(new Error('Error de lectura'));
+      reader.onerror = () => reject(new Error('Error lectura'));
       reader.readAsArrayBuffer(file);
     });
   }
 
-  // ─── PASO 2 ───────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════
+  // PASO 2
+  // ═══════════════════════════════════════════════════════════════
 
   async generarMatriz() {
     if (!this.pdfGestores || !this.pdfEstudiantes || !this.pdfConsolidado) {
       await Swal.fire({
         icon: 'warning',
         title: 'PDFs requeridos',
-        text: 'Sube los tres PDFs antes de continuar.',
-        confirmButtonText: 'Entendido',
         confirmButtonColor: '#00d68f',
       });
       return;
@@ -326,117 +302,216 @@ export class AnalisisPage {
 
     Swal.fire({
       title: 'Renderizando PDFs...',
-      text: 'Convirtiendo páginas a imágenes.',
       allowOutsideClick: false,
       didOpen: () => Swal.showLoading(),
     });
 
     try {
-      const [imagenesGestores, imagenesEstudiantes, imagenesConsolidado] =
-        await Promise.all([
-          this.extraerImagenesDePDF(this.pdfGestores),
-          this.extraerImagenesDePDF(this.pdfEstudiantes),
-          this.extraerImagenesDePDF(this.pdfConsolidado),
-        ]);
+      const [pgsG, pgsE, pgsC] = await Promise.all([
+        this.extraerPaginasDePDF(this.pdfGestores),
+        this.extraerPaginasDePDF(this.pdfEstudiantes),
+        this.extraerPaginasDePDF(this.pdfConsolidado),
+      ]);
 
-      const total =
-        imagenesGestores.length +
-        imagenesEstudiantes.length +
-        imagenesConsolidado.length;
+      const totalPags = pgsG.length + pgsE.length + pgsC.length;
       let procesadas = 0;
 
-      const actualizarProgreso = (label: string) => {
-        procesadas++;
-        Swal.update({
-          title: `OCR en progreso... (${procesadas}/${total})`,
-          text: label,
-        });
+      Swal.fire({
+        title: `OCR en progreso... (0/${totalPags})`,
+        text: 'Leyendo leyendas...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      const ocr = async (
+        paginas: PaginaExtraida[],
+        grupo: string,
+      ): Promise<DatosLikert[]> => {
+        const resultados: DatosLikert[] = [];
+        for (let i = 0; i < paginas.length; i++) {
+          procesadas++;
+          Swal.update({
+            title: `OCR en progreso... (${procesadas}/${totalPags})`,
+            text: `${grupo} – gráfica ${i + 1}`,
+          });
+          resultados.push(await this.ocr_y_parsear(paginas[i].imagenLeyenda));
+        }
+        return resultados;
       };
 
-      Swal.fire({
-        title: `OCR en progreso... (0/${total})`,
-        text: 'Leyendo leyendas de las gráficas...',
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading(),
-      });
+      const datosG = await ocr(pgsG, 'Gestores');
+      const datosE = await ocr(pgsE, 'Estudiantes');
+      const datosC = await ocr(pgsC, 'Consolidado');
 
-      // OCR secuencial para no saturar el worker
-      const datosGestores: DatosLikert[] = [];
-      for (let i = 0; i < imagenesGestores.length; i++) {
-        actualizarProgreso(`Gestores – gráfica ${i + 1}`);
-        datosGestores.push(await this.ocr_y_parsear(imagenesGestores[i]));
-      }
+      // Pobaciones totales: suma de cantidades de la primera gráfica de cada grupo
+      const pobG = datosG[0]?.total ?? 0;
+      const pobE = datosE[0]?.total ?? 0;
 
-      const datosEstudiantes: DatosLikert[] = [];
-      for (let i = 0; i < imagenesEstudiantes.length; i++) {
-        actualizarProgreso(`Estudiantes – gráfica ${i + 1}`);
-        datosEstudiantes.push(await this.ocr_y_parsear(imagenesEstudiantes[i]));
-      }
-
-      const datosConsolidado: DatosLikert[] = [];
-      for (let i = 0; i < imagenesConsolidado.length; i++) {
-        actualizarProgreso(`Consolidado – gráfica ${i + 1}`);
-        datosConsolidado.push(await this.ocr_y_parsear(imagenesConsolidado[i]));
-      }
-
-      const pobTotalGestores = datosGestores[0]?.total || 0;
-      const pobTotalEstudiantes = datosEstudiantes[0]?.total || 0;
-      const pobTotalConsol = pobTotalGestores + pobTotalEstudiantes;
-
-      const analisisGestores = datosGestores.map((d, i) =>
-        this.generarTextoAnalisis(
-          d,
-          i + 1,
-          'gestores del conocimiento y aprendizaje',
-        ),
+      const analG = datosG.map((d, i) =>
+        this.generarTexto(d, i + 1, 'gestores del conocimiento y aprendizaje'),
       );
-      const analisisEstudiantes = datosEstudiantes.map((d, i) =>
-        this.generarTextoAnalisis(d, i + 1, 'estudiantes'),
+      const analE = datosE.map((d, i) =>
+        this.generarTexto(d, i + 1, 'estudiantes'),
       );
-      const analisisConsolidado = datosConsolidado.map((d, i) =>
-        this.generarTextoAnalisis(d, i + 1, 'población consolidada'),
+      const analC = datosC.map((d, i) =>
+        this.generarTexto(d, i + 1, 'población consolidada'),
       );
 
       Swal.fire({
-        title: 'Armando matriz Excel...',
-        text: 'Generando el archivo final.',
+        title: 'Construyendo Excel...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading(),
       });
-      await new Promise((resolve) => setTimeout(resolve, 80));
+      await new Promise((r) => setTimeout(r, 80));
 
-      await this.construirMatrizExcel(
-        imagenesGestores,
-        imagenesEstudiantes,
-        imagenesConsolidado,
-        analisisGestores,
-        analisisEstudiantes,
-        analisisConsolidado,
-        pobTotalGestores,
-        pobTotalEstudiantes,
+      await this.construirExcel(
+        pgsG.map((p) => p.imagenCompleta),
+        pgsE.map((p) => p.imagenCompleta),
+        pgsC.map((p) => p.imagenCompleta),
+        analG,
+        analE,
+        analC,
+        pobG,
+        pobE,
       );
     } catch (err: any) {
       Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: err.message || 'No se pudo generar la matriz.',
-        confirmButtonText: 'Entendido',
+        text: err.message ?? 'No se pudo generar la matriz.',
         confirmButtonColor: '#00d68f',
       });
     }
   }
 
-  // ─── OCR con Tesseract ────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════
+  // EXTRACCIÓN DE PÁGINAS PDF
+  // Cada página del PDF = una gráfica.
+  // Devuelve:
+  //   imagenCompleta → página entera a escala 2.5 (para el Excel)
+  //   imagenLeyenda  → solo el 28% inferior de la página a escala 3
+  //                    (zona donde siempre está la leyenda, para el OCR)
+  // ═══════════════════════════════════════════════════════════════
 
-  private async ocr_y_parsear(imagenBase64: string): Promise<DatosLikert> {
+  private extraerPaginasDePDF(file: File): Promise<PaginaExtraida[]> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (e: ProgressEvent<FileReader>) => {
+        try {
+          const pdf = await pdfjsLib.getDocument({
+            data: e.target!.result as ArrayBuffer,
+          }).promise;
+          const paginas: PaginaExtraida[] = [];
+
+          for (let num = 1; num <= pdf.numPages; num++) {
+            const page = await pdf.getPage(num);
+
+            // ── Imagen completa (escala 2.5, para el Excel) ──
+            const vpFull = page.getViewport({ scale: 2.5 });
+            const cvFull = document.createElement('canvas');
+            cvFull.width = vpFull.width;
+            cvFull.height = vpFull.height;
+            const ctxFull = cvFull.getContext('2d')!;
+            ctxFull.fillStyle = '#fff';
+            ctxFull.fillRect(0, 0, cvFull.width, cvFull.height);
+            await page.render({
+              canvasContext: ctxFull,
+              viewport: vpFull,
+            } as any).promise;
+            const imagenCompleta = cvFull.toDataURL('image/jpeg', 0.92);
+
+            // ── Imagen de leyenda (escala 3, solo 28% inferior, para OCR) ──
+            // Escala mayor = más resolución = mejor OCR
+            const vpLey = page.getViewport({ scale: 3.0 });
+            const cvLey = document.createElement('canvas');
+            cvLey.width = vpLey.width;
+            cvLey.height = vpLey.height;
+            const ctxLey = cvLey.getContext('2d')!;
+            ctxLey.fillStyle = '#fff';
+            ctxLey.fillRect(0, 0, cvLey.width, cvLey.height);
+            await page.render({ canvasContext: ctxLey, viewport: vpLey } as any)
+              .promise;
+
+            // Recortar: tomar solo el 28% inferior donde vive la leyenda
+            const alturaLey = Math.floor(cvLey.height * 0.28);
+            const offsetY = cvLey.height - alturaLey;
+
+            const cvRecorte = document.createElement('canvas');
+            cvRecorte.width = cvLey.width;
+            cvRecorte.height = alturaLey;
+            const ctxR = cvRecorte.getContext('2d')!;
+            ctxR.fillStyle = '#fff';
+            ctxR.fillRect(0, 0, cvRecorte.width, cvRecorte.height);
+            ctxR.drawImage(
+              cvLey,
+              0,
+              offsetY,
+              cvLey.width,
+              alturaLey,
+              0,
+              0,
+              cvLey.width,
+              alturaLey,
+            );
+
+            // Pre-procesar para OCR: aumentar contraste, convertir a escala de grises
+            const imgData = ctxR.getImageData(
+              0,
+              0,
+              cvRecorte.width,
+              cvRecorte.height,
+            );
+            this.preprocesarParaOCR(imgData);
+            ctxR.putImageData(imgData, 0, 0);
+
+            const imagenLeyenda = cvRecorte.toDataURL('image/png'); // PNG sin compresión para OCR
+
+            paginas.push({ imagenCompleta, imagenLeyenda });
+          }
+
+          resolve(paginas);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error('Error leyendo PDF'));
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  /**
+   * Pre-procesa los píxeles para mejorar el OCR:
+   * - Convierte a escala de grises
+   * - Aplica umbral (threshold): píxeles claros → blanco, oscuros → negro
+   * Esto elimina colores de los íconos/leyenda y deja solo el texto nítido.
+   */
+  private preprocesarParaOCR(imgData: ImageData): void {
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const gris = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      // Umbral 160: píxeles grises medios → blanco (elimina fondos de color de leyenda)
+      const val = gris > 160 ? 255 : 0;
+      d[i] = d[i + 1] = d[i + 2] = val;
+      d[i + 3] = 255;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // OCR + PARSER
+  // ═══════════════════════════════════════════════════════════════
+
+  private async ocr_y_parsear(imagenLeyenda: string): Promise<DatosLikert> {
     try {
       const worker = await Tesseract.createWorker('spa');
       await worker.setParameters({
-        tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT,
+        tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK, // leyenda = bloque uniforme
+        // Solo permitir caracteres relevantes: letras, números, espacios, comas, puntos, %,  :, (,  )
+        tessedit_char_whitelist:
+          'ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz0123456789 .,():%',
       });
       const {
         data: { text },
-      } = await worker.recognize(imagenBase64);
+      } = await worker.recognize(imagenLeyenda);
       await worker.terminate();
       return this.parsearLeyenda(text);
     } catch {
@@ -444,108 +519,142 @@ export class AnalisisPage {
     }
   }
 
+  /**
+   * PARSER ROBUSTO
+   *
+   * Busca cada categoría con su propio regex que captura:
+   *   ETIQUETA ... CANTIDAD (PORCENTAJE%)
+   *
+   * Reglas de validación post-parseo:
+   *  1. Los porcentajes deben sumar entre 95% y 105% (margen de redondeo OCR)
+   *  2. El total (suma de cantidades) debe ser > 0
+   *  3. Si la validación falla → datoVacio()
+   */
   private parsearLeyenda(texto: string): DatosLikert {
-    const t = texto.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ');
-    const tLower = t.toLowerCase();
+    // Normalizar texto OCR
+    const t = texto.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
 
-    // Regex: captura pares CANTIDAD (PORCENTAJE%) en la leyenda
-    const patron = /(\d[\d.,]*)\s*\(\s*(\d[\d.,]*)\s*%\s*\)/g;
-    const matches: Array<{ cant: number; porc: number; pos: number }> = [];
+    // Regex por categoría — busca la etiqueta seguida (con hasta 80 chars de ruido)
+    // del par  NUMERO (NUMERO%)
+    const NUM = String.raw`(\d[\d.,]*)`;
+    const GAP = String.raw`[^()]{0,80}?`; // hasta 80 chars que no sean paréntesis
+    const PORC = String.raw`\(\s*(\d[\d.,]*)\s*%\s*\)`;
 
-    let m: RegExpExecArray | null;
-    while ((m = patron.exec(t)) !== null) {
+    const buscar = (re: RegExp): { cant: number; porc: number } | null => {
+      const m = re.exec(t);
+      if (!m) return null;
       const cant = parseFloat(m[1].replace(',', '.'));
       const porc = parseFloat(m[2].replace(',', '.'));
-      if (!isNaN(cant) && !isNaN(porc)) {
-        matches.push({ cant, porc, pos: m.index });
-      }
-    }
-
-    if (matches.length === 0) return this.datoVacio();
-
-    const categorias = {
-      ta: 0,
-      cantTa: 0,
-      a: 0,
-      cantA: 0,
-      n: 0,
-      cantN: 0,
-      d: 0,
-      cantD: 0,
-      td: 0,
-      cantTd: 0,
+      return isNaN(cant) || isNaN(porc) || cant <= 0 ? null : { cant, porc };
     };
 
-    const asignar = (pos: number, cant: number, porc: number) => {
-      const inicio = Math.max(0, pos - 90);
-      const contexto = tLower.substring(inicio, pos);
-
-      if (
-        /totalmente\s+de\s+acuerdo/.test(contexto) &&
-        !/en\s+desacuerdo/.test(contexto)
-      ) {
-        if (!categorias.cantTa) {
-          categorias.cantTa = cant;
-          categorias.ta = porc;
-        }
-      } else if (/ni\s+de\s+acuerdo/.test(contexto)) {
-        if (!categorias.cantN) {
-          categorias.cantN = cant;
-          categorias.n = porc;
-        }
-      } else if (/totalmente\s+en\s+desacuerdo/.test(contexto)) {
-        if (!categorias.cantTd) {
-          categorias.cantTd = cant;
-          categorias.td = porc;
-        }
-      } else if (/en\s+desacuerdo/.test(contexto)) {
-        if (!categorias.cantD) {
-          categorias.cantD = cant;
-          categorias.d = porc;
-        }
-      } else if (/de\s+acuerdo/.test(contexto)) {
-        if (!categorias.cantA) {
-          categorias.cantA = cant;
-          categorias.a = porc;
-        }
-      }
-    };
-
-    for (const match of matches) {
-      asignar(match.pos, match.cant, match.porc);
-    }
-
-    // Fallback posicional si el OCR no reconoció palabras clave
-    const asignadas = [
-      categorias.cantTa,
-      categorias.cantA,
-      categorias.cantN,
-      categorias.cantD,
-      categorias.cantTd,
-    ].filter((v) => v > 0).length;
-
-    if (asignadas < 3 && matches.length >= 5) {
-      categorias.cantTa = matches[0].cant;
-      categorias.ta = matches[0].porc;
-      categorias.cantA = matches[1].cant;
-      categorias.a = matches[1].porc;
-      categorias.cantN = matches[2].cant;
-      categorias.n = matches[2].porc;
-      categorias.cantD = matches[3].cant;
-      categorias.d = matches[3].porc;
-      categorias.cantTd = matches[4].cant;
-      categorias.td = matches[4].porc;
-    }
-
-    const total = Math.round(
-      categorias.cantTa +
-        categorias.cantA +
-        categorias.cantN +
-        categorias.cantD +
-        categorias.cantTd,
+    // Orden de búsqueda: de más específico a menos específico
+    const mTA = buscar(
+      new RegExp(`totalmente\\s+de\\s+acuerdo${GAP}${NUM}\\s*${PORC}`, 'i'),
+    );
+    const mTD = buscar(
+      new RegExp(`totalmente\\s+en\\s+desacuerdo${GAP}${NUM}\\s*${PORC}`, 'i'),
+    );
+    const mN = buscar(
+      new RegExp(`ni\\s+de\\s+acuerdo${GAP}${NUM}\\s*${PORC}`, 'i'),
+    );
+    // "De acuerdo" sin "totalmente" antes
+    const mA = buscar(
+      new RegExp(
+        `(?<!totalmente\\s{0,10})de\\s+acuerdo${GAP}${NUM}\\s*${PORC}`,
+        'i',
+      ),
+    );
+    // "En desacuerdo" sin "totalmente" antes
+    const mD = buscar(
+      new RegExp(
+        `(?<!totalmente\\s{0,10})en\\s+desacuerdo${GAP}${NUM}\\s*${PORC}`,
+        'i',
+      ),
     );
 
-    return { ...categorias, total };
+    const cantTa = mTA?.cant ?? 0;
+    const cantA = mA?.cant ?? 0;
+    const cantN = mN?.cant ?? 0;
+    const cantD = mD?.cant ?? 0;
+    const cantTd = mTD?.cant ?? 0;
+
+    const ta = mTA?.porc ?? 0;
+    const a = mA?.porc ?? 0;
+    const n = mN?.porc ?? 0;
+    const d = mD?.porc ?? 0;
+    const td = mTD?.porc ?? 0;
+
+    const total = Math.round(cantTa + cantA + cantN + cantD + cantTd);
+    const sumaPorcs = ta + a + n + d + td;
+    const encontrados = [mTA, mA, mN, mD, mTD].filter(Boolean).length;
+
+    // ── Validación de coherencia ──────────────────────────────────────────────
+    // Si los porcentajes no suman ~100% o no hay suficientes categorías,
+    // intentamos el fallback posicional antes de devolver vacío
+    if (total <= 0 || encontrados < 3 || sumaPorcs < 85 || sumaPorcs > 115) {
+      return this.parsearFallback(t);
+    }
+
+    return { ta, cantTa, a, cantA, n, cantN, d, cantD, td, cantTd, total };
+  }
+
+  /**
+   * FALLBACK POSICIONAL
+   *
+   * Cuando el OCR no reconoce bien las etiquetas, tomamos TODOS los pares
+   * NUMERO (NUMERO%) del texto y elegimos el conjunto de 5 consecutivos
+   * cuya suma de porcentajes esté más cerca de 100%.
+   *
+   * Esto evita que números del título o de los ejes contaminen el resultado.
+   */
+  private parsearFallback(texto: string): DatosLikert {
+    const patron = /(\d[\d.,]*)\s*\(\s*(\d[\d.,]*)\s*%\s*\)/g;
+    const todos: Array<{ cant: number; porc: number }> = [];
+
+    let m: RegExpExecArray | null;
+    while ((m = patron.exec(texto)) !== null) {
+      const cant = parseFloat(m[1].replace(',', '.'));
+      const porc = parseFloat(m[2].replace(',', '.'));
+      if (!isNaN(cant) && !isNaN(porc) && cant > 0 && porc > 0 && porc <= 100) {
+        todos.push({ cant, porc });
+      }
+    }
+
+    if (todos.length < 5) return this.datoVacio();
+
+    // Buscar la ventana de 5 cuya suma de porcentajes sea más cercana a 100
+    let mejorIdx = 0;
+    let mejorDelta = Infinity;
+
+    for (let i = 0; i <= todos.length - 5; i++) {
+      const suma = todos.slice(i, i + 5).reduce((acc, x) => acc + x.porc, 0);
+      const delta = Math.abs(suma - 100);
+      if (delta < mejorDelta) {
+        mejorDelta = delta;
+        mejorIdx = i;
+      }
+    }
+
+    // Rechazar si la mejor ventana está muy lejos de 100%
+    if (mejorDelta > 20) return this.datoVacio();
+
+    const [mTA, mA, mN, mD, mTD] = todos.slice(mejorIdx, mejorIdx + 5);
+    const total = Math.round(mTA.cant + mA.cant + mN.cant + mD.cant + mTD.cant);
+
+    return {
+      ta: mTA.porc,
+      cantTa: mTA.cant,
+      a: mA.porc,
+      cantA: mA.cant,
+      n: mN.porc,
+      cantN: mN.cant,
+      d: mD.porc,
+      cantD: mD.cant,
+      td: mTD.porc,
+      cantTd: mTD.cant,
+      total,
+    };
   }
 
   private datoVacio(): DatosLikert {
@@ -564,174 +673,101 @@ export class AnalisisPage {
     };
   }
 
-  // ─── Generador de texto de análisis ──────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════
+  // GENERADOR DE TEXTO
+  // ═══════════════════════════════════════════════════════════════
 
-  private generarTextoAnalisis(
+  private generarTexto(
     datos: DatosLikert,
-    numAfirmacion: number,
-    nombrePoblacion: string,
+    num: number,
+    poblacion: string,
   ): string {
     if (datos.total === 0) {
-      return `No se pudieron extraer datos de la gráfica ${numAfirmacion} para ${nombrePoblacion}.`;
+      return `No se pudieron extraer datos de la gráfica ${num} para ${poblacion}.`;
     }
 
     const total = datos.total;
-    const cantidades = this.ajustarRedondeo(
+    const [cTa, cA, cN, cD, cTd] = this.ajustarRedondeo(
       [datos.ta, datos.a, datos.n, datos.d, datos.td],
       total,
     );
-    const [cantTa, cantA, cantN, cantD, cantTd] = cantidades;
 
-    const fmt = (n: number): string =>
-      Number.isInteger(n) ? String(n) : n.toFixed(1);
+    const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
-    const porcPos = parseFloat((datos.ta + datos.a).toFixed(1));
-    const porcNeg = parseFloat((datos.n + datos.d + datos.td).toFixed(1));
-    const cantPos = cantTa + cantA;
-    const cantNeg = total - cantPos;
+    const pPos = parseFloat((datos.ta + datos.a).toFixed(1));
+    const pNeg = parseFloat((datos.n + datos.d + datos.td).toFixed(1));
+    const cPos = cTa + cA;
+    const cNeg = total - cPos;
 
     return (
-      `Población total consultada: ${total} ${nombrePoblacion}. ` +
-      `Percepción de la afirmación ${numAfirmacion}: ` +
-      `El ${fmt(datos.ta)}% (${cantTa} ${nombrePoblacion}) están totalmente de acuerdo, ` +
-      `el ${fmt(datos.a)}% (${cantA} ${nombrePoblacion}) están de acuerdo, ` +
-      `el ${fmt(datos.n)}% (${cantN} ${nombrePoblacion}) están ni de acuerdo, ni en desacuerdo, ` +
-      `el ${fmt(datos.d)}% (${cantD} ${nombrePoblacion}) están en desacuerdo ` +
-      `y el ${fmt(datos.td)}% (${cantTd} ${nombrePoblacion}) están totalmente en desacuerdo. ` +
-      `En suma, el ${fmt(porcPos)}% (${cantPos} ${nombrePoblacion}) tienen una percepción positiva ` +
-      `y el ${fmt(porcNeg)}% (${cantNeg} ${nombrePoblacion}) no la perciben positiva.`
+      `Población total consultada: ${total} ${poblacion}. ` +
+      `Percepción de la afirmación ${num}: ` +
+      `El ${fmt(datos.ta)}% (${cTa} ${poblacion}) están totalmente de acuerdo, ` +
+      `el ${fmt(datos.a)}% (${cA} ${poblacion}) están de acuerdo, ` +
+      `el ${fmt(datos.n)}% (${cN} ${poblacion}) están ni de acuerdo, ni en desacuerdo, ` +
+      `el ${fmt(datos.d)}% (${cD} ${poblacion}) están en desacuerdo ` +
+      `y el ${fmt(datos.td)}% (${cTd} ${poblacion}) están totalmente en desacuerdo. ` +
+      `En suma, el ${fmt(pPos)}% (${cPos} ${poblacion}) tienen una percepción positiva ` +
+      `y el ${fmt(pNeg)}% (${cNeg} ${poblacion}) no la perciben positiva.`
     );
   }
 
-  /**
-   * Algoritmo Largest Remainder (Hamilton):
-   * garantiza que la suma de enteros == total exacto.
-   */
+  /** Largest Remainder (Hamilton): suma de enteros == total exacto */
   private ajustarRedondeo(porcentajes: number[], total: number): number[] {
-    // Si no hay total válido, devolver ceros
     if (total <= 0) return porcentajes.map(() => 0);
-
     const exactos = porcentajes.map((p) => (p / 100) * total);
     const pisos = exactos.map(Math.floor);
     const restos = exactos.map((v, i) => ({ resto: v - pisos[i], idx: i }));
-
-    let suma = pisos.reduce((a, b) => a + b, 0);
-    let faltante = total - suma;
-
-    // Puede ser negativo si los porcentajes suman >100 por redondeo OCR
-    if (faltante === 0) return pisos;
-
-    restos.sort((a, b) => b.resto - a.resto);
+    const faltante = total - pisos.reduce((a, b) => a + b, 0);
 
     if (faltante > 0) {
-      // Sumar 1 a los de mayor resto
-      for (let i = 0; i < faltante && i < restos.length; i++) {
+      restos.sort((a, b) => b.resto - a.resto);
+      for (let i = 0; i < faltante && i < restos.length; i++)
         pisos[restos[i].idx]++;
-      }
-    } else {
-      // Restar 1 a los de menor resto (faltante negativo)
+    } else if (faltante < 0) {
       restos.sort((a, b) => a.resto - b.resto);
       for (let i = 0; i < Math.abs(faltante) && i < restos.length; i++) {
         pisos[restos[i].idx] = Math.max(0, pisos[restos[i].idx] - 1);
       }
     }
-
     return pisos;
   }
 
-  // ─── Renderizar PDF → imágenes ────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════
+  // CONSTRUIR EXCEL
+  // ═══════════════════════════════════════════════════════════════
 
-  private extraerImagenesDePDF(file: File): Promise<string[]> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = async (e: ProgressEvent<FileReader>) => {
-        try {
-          const arrayBuffer = e.target!.result as ArrayBuffer;
-          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-          const imagenes: string[] = [];
-
-          for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-            const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 2.5 });
-
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d')!;
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            await page.render({ canvasContext: ctx, viewport } as any).promise;
-
-            const mitadH = Math.floor(canvas.height / 2);
-
-            const recortar = (offsetY: number): string => {
-              const c = document.createElement('canvas');
-              c.width = canvas.width;
-              c.height = mitadH;
-              const cx = c.getContext('2d')!;
-              cx.fillStyle = '#ffffff';
-              cx.fillRect(0, 0, c.width, c.height);
-              cx.drawImage(
-                canvas,
-                0,
-                offsetY,
-                canvas.width,
-                mitadH,
-                0,
-                0,
-                canvas.width,
-                mitadH,
-              );
-              return c.toDataURL('image/jpeg', 0.92);
-            };
-
-            imagenes.push(recortar(0));
-            imagenes.push(recortar(mitadH));
-          }
-
-          resolve(imagenes);
-        } catch (err) {
-          reject(err);
-        }
-      };
-      reader.onerror = () => reject(new Error('Error leyendo PDF'));
-      reader.readAsArrayBuffer(file);
-    });
-  }
-
-  // ─── Construir Excel ──────────────────────────────────────────────────────
-
-  private async construirMatrizExcel(
-    imagenesGestores: string[],
-    imagenesEstudiantes: string[],
-    imagenesConsolidado: string[],
-    analisisGestores: string[],
-    analisisEstudiantes: string[],
-    analisisConsolidado: string[],
-    pobTotalGestores: number,
-    pobTotalEstudiantes: number,
+  private async construirExcel(
+    imgG: string[],
+    imgE: string[],
+    imgC: string[],
+    analG: string[],
+    analE: string[],
+    analC: string[],
+    pobG: number,
+    pobE: number,
   ) {
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Matriz Análisis', {
+    const wb = new ExcelJS.Workbook();
+    const sheet = wb.addWorksheet('Matriz Análisis', {
       pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
     });
 
-    const totalPreguntas = this.preguntasExtraidas.length;
-    const pobTotalConsol = pobTotalGestores + pobTotalEstudiantes;
+    const n = this.preguntasExtraidas.length;
+    const pobC = pobG + pobE;
 
     sheet.columns = [
       { key: 'item', width: 6 },
-      { key: 'afirmacion', width: 42 },
-      { key: 'grafGestores', width: 36 },
-      { key: 'grafEstud', width: 36 },
-      { key: 'anGestores', width: 32 },
-      { key: 'anEstud', width: 32 },
-      { key: 'grafConsol', width: 36 },
-      { key: 'anConsol', width: 32 },
+      { key: 'afirm', width: 42 },
+      { key: 'gG', width: 36 },
+      { key: 'gE', width: 36 },
+      { key: 'aG', width: 32 },
+      { key: 'aE', width: 32 },
+      { key: 'gC', width: 36 },
+      { key: 'aC', width: 32 },
     ];
 
-    // ── Fila 1: cabecera ──────────────────────────────────────────────────────
-    const cabecera = sheet.addRow([
+    // Fila 1: cabecera
+    const cab = sheet.addRow([
       'ÍTEM',
       'AFIRMACIÓN',
       'GESTORES DEL CONOCIMIENTO Y APRENDIZAJE',
@@ -741,9 +777,8 @@ export class AnalisisPage {
       'CONSOLIDADO DE LAS GRÁFICAS',
       'ANÁLISIS GRÁFICA CONSOLIDADOS',
     ]);
-
-    cabecera.height = 35;
-    cabecera.eachCell((cell: Cell) => {
+    cab.height = 35;
+    cab.eachCell((cell: Cell) => {
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
@@ -768,76 +803,61 @@ export class AnalisisPage {
       };
     });
 
-    // ── Fila 2: subcabecera con poblaciones totales ───────────────────────────
-    const subCabecera = sheet.addRow([
+    // Fila 2: subcabecera poblaciones
+    const sub = sheet.addRow([
       '',
       '',
       '',
       '',
-      pobTotalGestores > 0
-        ? `POBLACIÓN TOTAL: ${pobTotalGestores}`
-        : 'POBLACIÓN TOTAL: N/D',
-      pobTotalEstudiantes > 0
-        ? `POBLACIÓN TOTAL: ${pobTotalEstudiantes}`
-        : 'POBLACIÓN TOTAL: N/D',
+      pobG > 0 ? `POBLACIÓN TOTAL: ${pobG}` : 'POBLACIÓN TOTAL: N/D',
+      pobE > 0 ? `POBLACIÓN TOTAL: ${pobE}` : 'POBLACIÓN TOTAL: N/D',
       '',
-      pobTotalConsol > 0
-        ? `POBLACIÓN TOTAL: ${pobTotalConsol}`
-        : 'POBLACIÓN TOTAL: N/D',
+      pobC > 0 ? `POBLACIÓN TOTAL: ${pobC}` : 'POBLACIÓN TOTAL: N/D',
     ]);
+    sub.height = 18;
+    sub.eachCell({ includeEmpty: true }, (cell: Cell, col: number) => {
+      const hl = [5, 6, 8].includes(col);
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: hl ? 'FF1E2D4A' : 'FF16213A' },
+      };
+      cell.font = {
+        bold: hl,
+        color: { argb: hl ? 'FF00D68F' : 'FF16213A' },
+        size: 8,
+        name: 'Calibri',
+      };
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+        wrapText: true,
+      };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF8888AA' } },
+        left: { style: 'thin', color: { argb: 'FF8888AA' } },
+        bottom: { style: 'medium', color: { argb: 'FF8888AA' } },
+        right: { style: 'thin', color: { argb: 'FF8888AA' } },
+      };
+    });
 
-    subCabecera.height = 18;
-    subCabecera.eachCell(
-      { includeEmpty: true },
-      (cell: Cell, colNumber: number) => {
-        const conSub = [5, 6, 8].includes(colNumber);
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: conSub ? 'FF1E2D4A' : 'FF16213A' },
-        };
-        cell.font = {
-          bold: conSub,
-          color: { argb: conSub ? 'FF00D68F' : 'FF16213A' },
-          size: 8,
-          name: 'Calibri',
-        };
-        cell.alignment = {
-          vertical: 'middle',
-          horizontal: 'center',
-          wrapText: true,
-        };
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FF8888AA' } },
-          left: { style: 'thin', color: { argb: 'FF8888AA' } },
-          bottom: { style: 'medium', color: { argb: 'FF8888AA' } },
-          right: { style: 'thin', color: { argb: 'FF8888AA' } },
-        };
-      },
-    );
-
-    // ── Filas de datos ────────────────────────────────────────────────────────
-    const rowHeightPts = 165;
-
-    for (let i = 0; i < totalPreguntas; i++) {
+    // Filas de datos
+    for (let i = 0; i < n; i++) {
       const rowNum = i + 3;
-
       const fila = sheet.addRow([
         i + 1,
         this.preguntasExtraidas[i] || '',
         '',
         '',
-        analisisGestores[i] || '',
-        analisisEstudiantes[i] || '',
+        analG[i] || '',
+        analE[i] || '',
         '',
-        analisisConsolidado[i] || '',
+        analC[i] || '',
       ]);
-
-      fila.height = rowHeightPts;
+      fila.height = 165;
 
       fila.getCell(1).font = { bold: true, size: 10, name: 'Calibri' };
       fila.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
-
       fila.getCell(2).font = { size: 8, name: 'Calibri' };
       fila.getCell(2).alignment = {
         vertical: 'middle',
@@ -845,10 +865,9 @@ export class AnalisisPage {
         wrapText: true,
       };
 
-      [5, 6, 8].forEach((colIdx) => {
-        const cell = fila.getCell(colIdx);
-        cell.font = { size: 7, name: 'Calibri' };
-        cell.alignment = {
+      [5, 6, 8].forEach((ci) => {
+        fila.getCell(ci).font = { size: 7, name: 'Calibri' };
+        fila.getCell(ci).alignment = {
           vertical: 'top',
           horizontal: 'left',
           wrapText: true,
@@ -864,47 +883,38 @@ export class AnalisisPage {
         };
       });
 
-      const insertarImagen = (base64: string, colIndex: number) => {
-        const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
-        const imgId = workbook.addImage({
-          base64: base64Data,
-          extension: 'jpeg',
-        });
+      const insertImg = (b64: string, col: number) => {
+        const data = b64.replace(/^data:image\/\w+;base64,/, '');
+        const imgId = wb.addImage({ base64: data, extension: 'jpeg' });
         sheet.addImage(imgId, {
-          tl: { col: colIndex - 0.95, row: rowNum - 0.95 } as any,
+          tl: { col: col - 0.95, row: rowNum - 0.95 } as any,
           ext: { width: 215, height: 158 },
           editAs: 'oneCell',
         });
       };
 
-      if (imagenesGestores[i]) insertarImagen(imagenesGestores[i], 3);
-      if (imagenesEstudiantes[i]) insertarImagen(imagenesEstudiantes[i], 4);
-      if (imagenesConsolidado[i]) insertarImagen(imagenesConsolidado[i], 7);
+      if (imgG[i]) insertImg(imgG[i], 3);
+      if (imgE[i]) insertImg(imgE[i], 4);
+      if (imgC[i]) insertImg(imgC[i], 7);
     }
 
-    // ── Descarga ──────────────────────────────────────────────────────────────
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
+    // Descarga
+    const blob = new Blob([await wb.xlsx.writeBuffer()], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'matriz-analisis.xlsx';
-    a.click();
+    Object.assign(document.createElement('a'), {
+      href: url,
+      download: 'matriz-analisis.xlsx',
+    }).click();
     URL.revokeObjectURL(url);
 
     Swal.close();
-
     await Swal.fire({
       icon: 'success',
       title: '¡Matriz generada!',
-      html: `
-        <p>Se generó la matriz Excel con <b>${totalPreguntas} afirmaciones</b>.</p>
-        <p style="font-size:0.85rem;color:#888;margin-top:8px">
-          Gestores: ${pobTotalGestores} | Estudiantes: ${pobTotalEstudiantes} | Consolidado: ${pobTotalConsol}
-        </p>
-      `,
+      html: `<p>Matriz Excel con <b>${n} afirmaciones</b>.</p>
+             <p style="font-size:.85rem;color:#888;margin-top:8px">Gestores: ${pobG} | Estudiantes: ${pobE} | Consolidado: ${pobC}</p>`,
       confirmButtonText: '¡Listo!',
       confirmButtonColor: '#00d68f',
     });
