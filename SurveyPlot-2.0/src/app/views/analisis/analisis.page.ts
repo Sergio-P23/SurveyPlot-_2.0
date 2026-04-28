@@ -23,13 +23,31 @@ import {
 } from 'ionicons/icons';
 import Swal from 'sweetalert2';
 import * as XLSX from 'xlsx';
-import ExcelJS from 'exceljs';
+import * as ExcelJS from 'exceljs';
+import type { Cell } from 'exceljs';
 import * as pdfjsLib from 'pdfjs-dist';
+import Tesseract from 'tesseract.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.mjs',
   import.meta.url,
 ).toString();
+
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+
+interface DatosLikert {
+  ta: number;
+  cantTa: number;
+  a: number;
+  cantA: number;
+  n: number;
+  cantN: number;
+  d: number;
+  cantD: number;
+  td: number;
+  cantTd: number;
+  total: number;
+}
 
 @Component({
   selector: 'app-analisis',
@@ -57,14 +75,12 @@ export class AnalisisPage {
 
   pasoActual: number = 1;
 
-  // Paso 1
   archivoPaso1: File | null = null;
   nombreArchivoPaso1: string = 'Elegir archivo Excel';
   celdaInicio: string = '';
   celdaFin: string = '';
   preguntasExtraidas: string[] = [];
 
-  // Paso 2
   pdfGestores: File | null = null;
   nombrePdfGestores: string = 'Elegir PDF de Gestores';
   pdfEstudiantes: File | null = null;
@@ -97,36 +113,37 @@ export class AnalisisPage {
     this.pdfInputConsolidado.nativeElement.click();
   }
 
-  onArchivoPaso1(event: any) {
-    const file = event.target.files[0];
+  onArchivoPaso1(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
       this.archivoPaso1 = file;
       this.nombreArchivoPaso1 = file.name;
     }
   }
-  onPdfGestores(event: any) {
-    const file = event.target.files[0];
+  onPdfGestores(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
       this.pdfGestores = file;
       this.nombrePdfGestores = file.name;
     }
   }
-  onPdfEstudiantes(event: any) {
-    const file = event.target.files[0];
+  onPdfEstudiantes(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
       this.pdfEstudiantes = file;
       this.nombrePdfEstudiantes = file.name;
     }
   }
-  onPdfConsolidado(event: any) {
-    const file = event.target.files[0];
+  onPdfConsolidado(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
       this.pdfConsolidado = file;
       this.nombrePdfConsolidado = file.name;
     }
   }
 
-  // ─── PASO 1 ───────────────────────────────────────────────
+  // ─── PASO 1 ───────────────────────────────────────────────────────────────
+
   async irPaso2() {
     if (!this.archivoPaso1) {
       await Swal.fire({
@@ -227,8 +244,8 @@ export class AnalisisPage {
         title: '¡Preguntas extraídas!',
         html: `
           <p>Se encontraron <b>${preguntas.length} preguntas</b>:</p>
-          <div style="max-height:200px; overflow-y:auto; text-align:left; margin-top:10px;">
-            ${preguntas.map((p, i) => `<div style="padding:4px 0; border-bottom:1px solid rgba(0,0,0,0.05); font-size:0.85rem;"><b>${i + 1}.</b> ${p}</div>`).join('')}
+          <div style="max-height:200px;overflow-y:auto;text-align:left;margin-top:10px;">
+            ${preguntas.map((p, i) => `<div style="padding:4px 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:0.85rem;"><b>${i + 1}.</b> ${p}</div>`).join('')}
           </div>
         `,
         confirmButtonText: 'Continuar al Paso 2',
@@ -254,9 +271,9 @@ export class AnalisisPage {
   ): Promise<string[]> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e: any) => {
+      reader.onload = (e: ProgressEvent<FileReader>) => {
         try {
-          const datos = new Uint8Array(e.target.result);
+          const datos = new Uint8Array(e.target!.result as ArrayBuffer);
           const libro = XLSX.read(datos, { type: 'array' });
           const hoja = libro.Sheets[libro.SheetNames[0]];
           const jsonData: any[][] = XLSX.utils.sheet_to_json(hoja, {
@@ -293,33 +310,14 @@ export class AnalisisPage {
     });
   }
 
-  // ─── PASO 2 ───────────────────────────────────────────────
+  // ─── PASO 2 ───────────────────────────────────────────────────────────────
+
   async generarMatriz() {
-    if (!this.pdfGestores) {
+    if (!this.pdfGestores || !this.pdfEstudiantes || !this.pdfConsolidado) {
       await Swal.fire({
         icon: 'warning',
-        title: 'PDF requerido',
-        text: 'Sube el PDF de Gestores.',
-        confirmButtonText: 'Entendido',
-        confirmButtonColor: '#00d68f',
-      });
-      return;
-    }
-    if (!this.pdfEstudiantes) {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'PDF requerido',
-        text: 'Sube el PDF de Estudiantes.',
-        confirmButtonText: 'Entendido',
-        confirmButtonColor: '#00d68f',
-      });
-      return;
-    }
-    if (!this.pdfConsolidado) {
-      await Swal.fire({
-        icon: 'warning',
-        title: 'PDF requerido',
-        text: 'Sube el PDF Consolidado.',
+        title: 'PDFs requeridos',
+        text: 'Sube los tres PDFs antes de continuar.',
         confirmButtonText: 'Entendido',
         confirmButtonColor: '#00d68f',
       });
@@ -327,8 +325,8 @@ export class AnalisisPage {
     }
 
     Swal.fire({
-      title: 'Extrayendo gráficas...',
-      text: 'Esto puede tomar unos segundos.',
+      title: 'Renderizando PDFs...',
+      text: 'Convirtiendo páginas a imágenes.',
       allowOutsideClick: false,
       didOpen: () => Swal.showLoading(),
     });
@@ -341,18 +339,81 @@ export class AnalisisPage {
           this.extraerImagenesDePDF(this.pdfConsolidado),
         ]);
 
+      const total =
+        imagenesGestores.length +
+        imagenesEstudiantes.length +
+        imagenesConsolidado.length;
+      let procesadas = 0;
+
+      const actualizarProgreso = (label: string) => {
+        procesadas++;
+        Swal.update({
+          title: `OCR en progreso... (${procesadas}/${total})`,
+          text: label,
+        });
+      };
+
       Swal.fire({
-        title: 'Armando matriz Excel...',
-        text: 'Generando el archivo.',
+        title: `OCR en progreso... (0/${total})`,
+        text: 'Leyendo leyendas de las gráficas...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading(),
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // OCR secuencial para no saturar el worker
+      const datosGestores: DatosLikert[] = [];
+      for (let i = 0; i < imagenesGestores.length; i++) {
+        actualizarProgreso(`Gestores – gráfica ${i + 1}`);
+        datosGestores.push(await this.ocr_y_parsear(imagenesGestores[i]));
+      }
+
+      const datosEstudiantes: DatosLikert[] = [];
+      for (let i = 0; i < imagenesEstudiantes.length; i++) {
+        actualizarProgreso(`Estudiantes – gráfica ${i + 1}`);
+        datosEstudiantes.push(await this.ocr_y_parsear(imagenesEstudiantes[i]));
+      }
+
+      const datosConsolidado: DatosLikert[] = [];
+      for (let i = 0; i < imagenesConsolidado.length; i++) {
+        actualizarProgreso(`Consolidado – gráfica ${i + 1}`);
+        datosConsolidado.push(await this.ocr_y_parsear(imagenesConsolidado[i]));
+      }
+
+      const pobTotalGestores = datosGestores[0]?.total || 0;
+      const pobTotalEstudiantes = datosEstudiantes[0]?.total || 0;
+      const pobTotalConsol = pobTotalGestores + pobTotalEstudiantes;
+
+      const analisisGestores = datosGestores.map((d, i) =>
+        this.generarTextoAnalisis(
+          d,
+          i + 1,
+          'gestores del conocimiento y aprendizaje',
+        ),
+      );
+      const analisisEstudiantes = datosEstudiantes.map((d, i) =>
+        this.generarTextoAnalisis(d, i + 1, 'estudiantes'),
+      );
+      const analisisConsolidado = datosConsolidado.map((d, i) =>
+        this.generarTextoAnalisis(d, i + 1, 'población consolidada'),
+      );
+
+      Swal.fire({
+        title: 'Armando matriz Excel...',
+        text: 'Generando el archivo final.',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
       await this.construirMatrizExcel(
         imagenesGestores,
         imagenesEstudiantes,
         imagenesConsolidado,
+        analisisGestores,
+        analisisEstudiantes,
+        analisisConsolidado,
+        pobTotalGestores,
+        pobTotalEstudiantes,
       );
     } catch (err: any) {
       Swal.fire({
@@ -365,12 +426,227 @@ export class AnalisisPage {
     }
   }
 
+  // ─── OCR con Tesseract ────────────────────────────────────────────────────
+
+  private async ocr_y_parsear(imagenBase64: string): Promise<DatosLikert> {
+    try {
+      const worker = await Tesseract.createWorker('spa');
+      await worker.setParameters({
+        tessedit_pageseg_mode: Tesseract.PSM.SPARSE_TEXT,
+      });
+      const {
+        data: { text },
+      } = await worker.recognize(imagenBase64);
+      await worker.terminate();
+      return this.parsearLeyenda(text);
+    } catch {
+      return this.datoVacio();
+    }
+  }
+
+  private parsearLeyenda(texto: string): DatosLikert {
+    const t = texto.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ');
+    const tLower = t.toLowerCase();
+
+    // Regex: captura pares CANTIDAD (PORCENTAJE%) en la leyenda
+    const patron = /(\d[\d.,]*)\s*\(\s*(\d[\d.,]*)\s*%\s*\)/g;
+    const matches: Array<{ cant: number; porc: number; pos: number }> = [];
+
+    let m: RegExpExecArray | null;
+    while ((m = patron.exec(t)) !== null) {
+      const cant = parseFloat(m[1].replace(',', '.'));
+      const porc = parseFloat(m[2].replace(',', '.'));
+      if (!isNaN(cant) && !isNaN(porc)) {
+        matches.push({ cant, porc, pos: m.index });
+      }
+    }
+
+    if (matches.length === 0) return this.datoVacio();
+
+    const categorias = {
+      ta: 0,
+      cantTa: 0,
+      a: 0,
+      cantA: 0,
+      n: 0,
+      cantN: 0,
+      d: 0,
+      cantD: 0,
+      td: 0,
+      cantTd: 0,
+    };
+
+    const asignar = (pos: number, cant: number, porc: number) => {
+      const inicio = Math.max(0, pos - 90);
+      const contexto = tLower.substring(inicio, pos);
+
+      if (
+        /totalmente\s+de\s+acuerdo/.test(contexto) &&
+        !/en\s+desacuerdo/.test(contexto)
+      ) {
+        if (!categorias.cantTa) {
+          categorias.cantTa = cant;
+          categorias.ta = porc;
+        }
+      } else if (/ni\s+de\s+acuerdo/.test(contexto)) {
+        if (!categorias.cantN) {
+          categorias.cantN = cant;
+          categorias.n = porc;
+        }
+      } else if (/totalmente\s+en\s+desacuerdo/.test(contexto)) {
+        if (!categorias.cantTd) {
+          categorias.cantTd = cant;
+          categorias.td = porc;
+        }
+      } else if (/en\s+desacuerdo/.test(contexto)) {
+        if (!categorias.cantD) {
+          categorias.cantD = cant;
+          categorias.d = porc;
+        }
+      } else if (/de\s+acuerdo/.test(contexto)) {
+        if (!categorias.cantA) {
+          categorias.cantA = cant;
+          categorias.a = porc;
+        }
+      }
+    };
+
+    for (const match of matches) {
+      asignar(match.pos, match.cant, match.porc);
+    }
+
+    // Fallback posicional si el OCR no reconoció palabras clave
+    const asignadas = [
+      categorias.cantTa,
+      categorias.cantA,
+      categorias.cantN,
+      categorias.cantD,
+      categorias.cantTd,
+    ].filter((v) => v > 0).length;
+
+    if (asignadas < 3 && matches.length >= 5) {
+      categorias.cantTa = matches[0].cant;
+      categorias.ta = matches[0].porc;
+      categorias.cantA = matches[1].cant;
+      categorias.a = matches[1].porc;
+      categorias.cantN = matches[2].cant;
+      categorias.n = matches[2].porc;
+      categorias.cantD = matches[3].cant;
+      categorias.d = matches[3].porc;
+      categorias.cantTd = matches[4].cant;
+      categorias.td = matches[4].porc;
+    }
+
+    const total = Math.round(
+      categorias.cantTa +
+        categorias.cantA +
+        categorias.cantN +
+        categorias.cantD +
+        categorias.cantTd,
+    );
+
+    return { ...categorias, total };
+  }
+
+  private datoVacio(): DatosLikert {
+    return {
+      ta: 0,
+      cantTa: 0,
+      a: 0,
+      cantA: 0,
+      n: 0,
+      cantN: 0,
+      d: 0,
+      cantD: 0,
+      td: 0,
+      cantTd: 0,
+      total: 0,
+    };
+  }
+
+  // ─── Generador de texto de análisis ──────────────────────────────────────
+
+  private generarTextoAnalisis(
+    datos: DatosLikert,
+    numAfirmacion: number,
+    nombrePoblacion: string,
+  ): string {
+    if (datos.total === 0) {
+      return `No se pudieron extraer datos de la gráfica ${numAfirmacion} para ${nombrePoblacion}.`;
+    }
+
+    const total = datos.total;
+    const cantidades = this.ajustarRedondeo(
+      [datos.ta, datos.a, datos.n, datos.d, datos.td],
+      total,
+    );
+    const [cantTa, cantA, cantN, cantD, cantTd] = cantidades;
+
+    const fmt = (n: number): string =>
+      Number.isInteger(n) ? String(n) : n.toFixed(1);
+
+    const porcPos = parseFloat((datos.ta + datos.a).toFixed(1));
+    const porcNeg = parseFloat((datos.n + datos.d + datos.td).toFixed(1));
+    const cantPos = cantTa + cantA;
+    const cantNeg = total - cantPos;
+
+    return (
+      `Población total consultada: ${total} ${nombrePoblacion}. ` +
+      `Percepción de la afirmación ${numAfirmacion}: ` +
+      `El ${fmt(datos.ta)}% (${cantTa} ${nombrePoblacion}) están totalmente de acuerdo, ` +
+      `el ${fmt(datos.a)}% (${cantA} ${nombrePoblacion}) están de acuerdo, ` +
+      `el ${fmt(datos.n)}% (${cantN} ${nombrePoblacion}) están ni de acuerdo, ni en desacuerdo, ` +
+      `el ${fmt(datos.d)}% (${cantD} ${nombrePoblacion}) están en desacuerdo ` +
+      `y el ${fmt(datos.td)}% (${cantTd} ${nombrePoblacion}) están totalmente en desacuerdo. ` +
+      `En suma, el ${fmt(porcPos)}% (${cantPos} ${nombrePoblacion}) tienen una percepción positiva ` +
+      `y el ${fmt(porcNeg)}% (${cantNeg} ${nombrePoblacion}) no la perciben positiva.`
+    );
+  }
+
+  /**
+   * Algoritmo Largest Remainder (Hamilton):
+   * garantiza que la suma de enteros == total exacto.
+   */
+  private ajustarRedondeo(porcentajes: number[], total: number): number[] {
+    // Si no hay total válido, devolver ceros
+    if (total <= 0) return porcentajes.map(() => 0);
+
+    const exactos = porcentajes.map((p) => (p / 100) * total);
+    const pisos = exactos.map(Math.floor);
+    const restos = exactos.map((v, i) => ({ resto: v - pisos[i], idx: i }));
+
+    let suma = pisos.reduce((a, b) => a + b, 0);
+    let faltante = total - suma;
+
+    // Puede ser negativo si los porcentajes suman >100 por redondeo OCR
+    if (faltante === 0) return pisos;
+
+    restos.sort((a, b) => b.resto - a.resto);
+
+    if (faltante > 0) {
+      // Sumar 1 a los de mayor resto
+      for (let i = 0; i < faltante && i < restos.length; i++) {
+        pisos[restos[i].idx]++;
+      }
+    } else {
+      // Restar 1 a los de menor resto (faltante negativo)
+      restos.sort((a, b) => a.resto - b.resto);
+      for (let i = 0; i < Math.abs(faltante) && i < restos.length; i++) {
+        pisos[restos[i].idx] = Math.max(0, pisos[restos[i].idx] - 1);
+      }
+    }
+
+    return pisos;
+  }
+
+  // ─── Renderizar PDF → imágenes ────────────────────────────────────────────
+
   private extraerImagenesDePDF(file: File): Promise<string[]> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = async (e: any) => {
+      reader.onload = async (e: ProgressEvent<FileReader>) => {
         try {
-          const arrayBuffer = e.target.result;
+          const arrayBuffer = e.target!.result as ArrayBuffer;
           const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
           const imagenes: string[] = [];
 
@@ -384,48 +660,33 @@ export class AnalisisPage {
             const ctx = canvas.getContext('2d')!;
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            await page.render({ canvasContext: ctx, viewport, canvas } as any)
-              .promise;
+            await page.render({ canvasContext: ctx, viewport } as any).promise;
 
             const mitadH = Math.floor(canvas.height / 2);
 
-            const top = document.createElement('canvas');
-            top.width = canvas.width;
-            top.height = mitadH;
-            const ctxTop = top.getContext('2d')!;
-            ctxTop.fillStyle = '#ffffff';
-            ctxTop.fillRect(0, 0, top.width, top.height);
-            ctxTop.drawImage(
-              canvas,
-              0,
-              0,
-              canvas.width,
-              mitadH,
-              0,
-              0,
-              canvas.width,
-              mitadH,
-            );
-            imagenes.push(top.toDataURL('image/jpeg', 0.92));
+            const recortar = (offsetY: number): string => {
+              const c = document.createElement('canvas');
+              c.width = canvas.width;
+              c.height = mitadH;
+              const cx = c.getContext('2d')!;
+              cx.fillStyle = '#ffffff';
+              cx.fillRect(0, 0, c.width, c.height);
+              cx.drawImage(
+                canvas,
+                0,
+                offsetY,
+                canvas.width,
+                mitadH,
+                0,
+                0,
+                canvas.width,
+                mitadH,
+              );
+              return c.toDataURL('image/jpeg', 0.92);
+            };
 
-            const bot = document.createElement('canvas');
-            bot.width = canvas.width;
-            bot.height = mitadH;
-            const ctxBot = bot.getContext('2d')!;
-            ctxBot.fillStyle = '#ffffff';
-            ctxBot.fillRect(0, 0, bot.width, bot.height);
-            ctxBot.drawImage(
-              canvas,
-              0,
-              mitadH,
-              canvas.width,
-              mitadH,
-              0,
-              0,
-              canvas.width,
-              mitadH,
-            );
-            imagenes.push(bot.toDataURL('image/jpeg', 0.92));
+            imagenes.push(recortar(0));
+            imagenes.push(recortar(mitadH));
           }
 
           resolve(imagenes);
@@ -438,10 +699,17 @@ export class AnalisisPage {
     });
   }
 
+  // ─── Construir Excel ──────────────────────────────────────────────────────
+
   private async construirMatrizExcel(
     imagenesGestores: string[],
     imagenesEstudiantes: string[],
     imagenesConsolidado: string[],
+    analisisGestores: string[],
+    analisisEstudiantes: string[],
+    analisisConsolidado: string[],
+    pobTotalGestores: number,
+    pobTotalEstudiantes: number,
   ) {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Matriz Análisis', {
@@ -449,16 +717,7 @@ export class AnalisisPage {
     });
 
     const totalPreguntas = this.preguntasExtraidas.length;
-
-    // Orden columnas:
-    // A: Ítem
-    // B: Afirmación
-    // C: Gráfica Gestores
-    // D: Gráfica Estudiantes
-    // E: Análisis Gestores (vacío)
-    // F: Análisis Estudiantes (vacío)
-    // G: Gráfica Consolidado
-    // H: Análisis Consolidado (vacío)
+    const pobTotalConsol = pobTotalGestores + pobTotalEstudiantes;
 
     sheet.columns = [
       { key: 'item', width: 6 },
@@ -471,7 +730,7 @@ export class AnalisisPage {
       { key: 'anConsol', width: 32 },
     ];
 
-    // ── Fila 1: cabecera principal ──
+    // ── Fila 1: cabecera ──────────────────────────────────────────────────────
     const cabecera = sheet.addRow([
       'ÍTEM',
       'AFIRMACIÓN',
@@ -484,7 +743,7 @@ export class AnalisisPage {
     ]);
 
     cabecera.height = 35;
-    cabecera.eachCell((cell) => {
+    cabecera.eachCell((cell: Cell) => {
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
@@ -509,54 +768,69 @@ export class AnalisisPage {
       };
     });
 
-    // ── Fila 2: subcabecera POBLACIÓN TOTAL: N ──
+    // ── Fila 2: subcabecera con poblaciones totales ───────────────────────────
     const subCabecera = sheet.addRow([
       '',
       '',
       '',
       '',
-      'POBLACIÓN TOTAL: N',
-      'POBLACIÓN TOTAL: N',
+      pobTotalGestores > 0
+        ? `POBLACIÓN TOTAL: ${pobTotalGestores}`
+        : 'POBLACIÓN TOTAL: N/D',
+      pobTotalEstudiantes > 0
+        ? `POBLACIÓN TOTAL: ${pobTotalEstudiantes}`
+        : 'POBLACIÓN TOTAL: N/D',
       '',
-      'POBLACIÓN TOTAL: N',
+      pobTotalConsol > 0
+        ? `POBLACIÓN TOTAL: ${pobTotalConsol}`
+        : 'POBLACIÓN TOTAL: N/D',
     ]);
 
     subCabecera.height = 18;
-    subCabecera.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-      const conSub = [5, 6, 8].includes(colNumber);
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: conSub ? 'FF1E2D4A' : 'FF16213A' },
-      };
-      cell.font = { color: { argb: 'FFAABBCC' }, size: 7, name: 'Calibri' };
-      cell.alignment = {
-        vertical: 'middle',
-        horizontal: 'center',
-        wrapText: true,
-      };
-      cell.border = {
-        top: { style: 'thin', color: { argb: 'FF8888AA' } },
-        left: { style: 'thin', color: { argb: 'FF8888AA' } },
-        bottom: { style: 'medium', color: { argb: 'FF8888AA' } },
-        right: { style: 'thin', color: { argb: 'FF8888AA' } },
-      };
-    });
+    subCabecera.eachCell(
+      { includeEmpty: true },
+      (cell: Cell, colNumber: number) => {
+        const conSub = [5, 6, 8].includes(colNumber);
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: conSub ? 'FF1E2D4A' : 'FF16213A' },
+        };
+        cell.font = {
+          bold: conSub,
+          color: { argb: conSub ? 'FF00D68F' : 'FF16213A' },
+          size: 8,
+          name: 'Calibri',
+        };
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: 'center',
+          wrapText: true,
+        };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF8888AA' } },
+          left: { style: 'thin', color: { argb: 'FF8888AA' } },
+          bottom: { style: 'medium', color: { argb: 'FF8888AA' } },
+          right: { style: 'thin', color: { argb: 'FF8888AA' } },
+        };
+      },
+    );
 
+    // ── Filas de datos ────────────────────────────────────────────────────────
     const rowHeightPts = 165;
 
     for (let i = 0; i < totalPreguntas; i++) {
-      const rowNum = i + 3; // filas 1 y 2 son cabeceras
+      const rowNum = i + 3;
 
       const fila = sheet.addRow([
         i + 1,
         this.preguntasExtraidas[i] || '',
         '',
         '',
+        analisisGestores[i] || '',
+        analisisEstudiantes[i] || '',
         '',
-        '',
-        '',
-        '',
+        analisisConsolidado[i] || '',
       ]);
 
       fila.height = rowHeightPts;
@@ -571,7 +845,17 @@ export class AnalisisPage {
         wrapText: true,
       };
 
-      fila.eachCell({ includeEmpty: true }, (cell) => {
+      [5, 6, 8].forEach((colIdx) => {
+        const cell = fila.getCell(colIdx);
+        cell.font = { size: 7, name: 'Calibri' };
+        cell.alignment = {
+          vertical: 'top',
+          horizontal: 'left',
+          wrapText: true,
+        };
+      });
+
+      fila.eachCell({ includeEmpty: true }, (cell: Cell) => {
         cell.border = {
           top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
           left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
@@ -580,7 +864,6 @@ export class AnalisisPage {
         };
       });
 
-      // ── Insertar imágenes ──
       const insertarImagen = (base64: string, colIndex: number) => {
         const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
         const imgId = workbook.addImage({
@@ -594,12 +877,12 @@ export class AnalisisPage {
         });
       };
 
-      if (imagenesGestores[i]) insertarImagen(imagenesGestores[i], 3); // col C
-      if (imagenesEstudiantes[i]) insertarImagen(imagenesEstudiantes[i], 4); // col D
-      if (imagenesConsolidado[i]) insertarImagen(imagenesConsolidado[i], 7); // col G
+      if (imagenesGestores[i]) insertarImagen(imagenesGestores[i], 3);
+      if (imagenesEstudiantes[i]) insertarImagen(imagenesEstudiantes[i], 4);
+      if (imagenesConsolidado[i]) insertarImagen(imagenesConsolidado[i], 7);
     }
 
-    // ── Descargar ──
+    // ── Descarga ──────────────────────────────────────────────────────────────
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -618,8 +901,8 @@ export class AnalisisPage {
       title: '¡Matriz generada!',
       html: `
         <p>Se generó la matriz Excel con <b>${totalPreguntas} afirmaciones</b>.</p>
-        <p style="font-size:0.85rem; color:#888; margin-top:8px">
-          Las columnas E, F y H están vacías para completar el análisis.
+        <p style="font-size:0.85rem;color:#888;margin-top:8px">
+          Gestores: ${pobTotalGestores} | Estudiantes: ${pobTotalEstudiantes} | Consolidado: ${pobTotalConsol}
         </p>
       `,
       confirmButtonText: '¡Listo!',
