@@ -47,10 +47,9 @@ interface DatosLikert {
   total: number;
 }
 
-// Resultado por página: imagen completa + imagen solo de la leyenda (para OCR)
-interface PaginaExtraida {
-  imagenCompleta: string; // base64 página completa → va al Excel
-  imagenLeyenda: string; // base64 franja inferior → va al OCR
+interface GraficaExtraida {
+  imagenCompleta: string; // base64 de la gráfica individual → va al Excel
+  imagenLeyenda: string; // base64 de la leyenda de esa gráfica → va al OCR
 }
 
 @Component({
@@ -197,7 +196,7 @@ export class AnalisisPage {
       await Swal.fire({
         icon: 'error',
         title: 'Rango incorrecto',
-        text: `Columna inicio > fin.`,
+        text: 'Columna inicio > fin.',
         confirmButtonColor: '#00d68f',
       });
       return;
@@ -307,43 +306,43 @@ export class AnalisisPage {
     });
 
     try {
-      const [pgsG, pgsE, pgsC] = await Promise.all([
-        this.extraerPaginasDePDF(this.pdfGestores),
-        this.extraerPaginasDePDF(this.pdfEstudiantes),
-        this.extraerPaginasDePDF(this.pdfConsolidado),
+      // Extraer gráficas individuales (cada página del PDF tiene 2 → las cortamos en 2)
+      const [gsG, gsE, gsC] = await Promise.all([
+        this.extraerGraficasDePDF(this.pdfGestores),
+        this.extraerGraficasDePDF(this.pdfEstudiantes),
+        this.extraerGraficasDePDF(this.pdfConsolidado),
       ]);
 
-      const totalPags = pgsG.length + pgsE.length + pgsC.length;
+      const total = gsG.length + gsE.length + gsC.length;
       let procesadas = 0;
 
       Swal.fire({
-        title: `OCR en progreso... (0/${totalPags})`,
+        title: `OCR en progreso... (0/${total})`,
         text: 'Leyendo leyendas...',
         allowOutsideClick: false,
         didOpen: () => Swal.showLoading(),
       });
 
       const ocr = async (
-        paginas: PaginaExtraida[],
+        graficas: GraficaExtraida[],
         grupo: string,
       ): Promise<DatosLikert[]> => {
-        const resultados: DatosLikert[] = [];
-        for (let i = 0; i < paginas.length; i++) {
+        const res: DatosLikert[] = [];
+        for (let i = 0; i < graficas.length; i++) {
           procesadas++;
           Swal.update({
-            title: `OCR en progreso... (${procesadas}/${totalPags})`,
+            title: `OCR en progreso... (${procesadas}/${total})`,
             text: `${grupo} – gráfica ${i + 1}`,
           });
-          resultados.push(await this.ocr_y_parsear(paginas[i].imagenLeyenda));
+          res.push(await this.ocr_y_parsear(graficas[i].imagenLeyenda));
         }
-        return resultados;
+        return res;
       };
 
-      const datosG = await ocr(pgsG, 'Gestores');
-      const datosE = await ocr(pgsE, 'Estudiantes');
-      const datosC = await ocr(pgsC, 'Consolidado');
+      const datosG = await ocr(gsG, 'Gestores');
+      const datosE = await ocr(gsE, 'Estudiantes');
+      const datosC = await ocr(gsC, 'Consolidado');
 
-      // Pobaciones totales: suma de cantidades de la primera gráfica de cada grupo
       const pobG = datosG[0]?.total ?? 0;
       const pobE = datosE[0]?.total ?? 0;
 
@@ -365,9 +364,9 @@ export class AnalisisPage {
       await new Promise((r) => setTimeout(r, 80));
 
       await this.construirExcel(
-        pgsG.map((p) => p.imagenCompleta),
-        pgsE.map((p) => p.imagenCompleta),
-        pgsC.map((p) => p.imagenCompleta),
+        gsG.map((g) => g.imagenCompleta),
+        gsE.map((g) => g.imagenCompleta),
+        gsC.map((g) => g.imagenCompleta),
         analG,
         analE,
         analC,
@@ -385,15 +384,12 @@ export class AnalisisPage {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // EXTRACCIÓN DE PÁGINAS PDF
-  // Cada página del PDF = una gráfica.
-  // Devuelve:
-  //   imagenCompleta → página entera a escala 2.5 (para el Excel)
-  //   imagenLeyenda  → solo el 28% inferior de la página a escala 3
-  //                    (zona donde siempre está la leyenda, para el OCR)
+  // EXTRACCIÓN DE GRÁFICAS — CLAVE: cada página tiene 2 gráficas
+  // Las cortamos en mitad superior e inferior
+  // Resultado: UNA GraficaExtraida por gráfica individual
   // ═══════════════════════════════════════════════════════════════
 
-  private extraerPaginasDePDF(file: File): Promise<PaginaExtraida[]> {
+  private extraerGraficasDePDF(file: File): Promise<GraficaExtraida[]> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = async (e: ProgressEvent<FileReader>) => {
@@ -401,75 +397,108 @@ export class AnalisisPage {
           const pdf = await pdfjsLib.getDocument({
             data: e.target!.result as ArrayBuffer,
           }).promise;
-          const paginas: PaginaExtraida[] = [];
+          const graficas: GraficaExtraida[] = [];
 
           for (let num = 1; num <= pdf.numPages; num++) {
             const page = await pdf.getPage(num);
 
-            // ── Imagen completa (escala 2.5, para el Excel) ──
-            const vpFull = page.getViewport({ scale: 2.5 });
-            const cvFull = document.createElement('canvas');
-            cvFull.width = vpFull.width;
-            cvFull.height = vpFull.height;
-            const ctxFull = cvFull.getContext('2d')!;
-            ctxFull.fillStyle = '#fff';
-            ctxFull.fillRect(0, 0, cvFull.width, cvFull.height);
-            await page.render({
-              canvasContext: ctxFull,
-              viewport: vpFull,
-            } as any).promise;
-            const imagenCompleta = cvFull.toDataURL('image/jpeg', 0.92);
-
-            // ── Imagen de leyenda (escala 3, solo 28% inferior, para OCR) ──
-            // Escala mayor = más resolución = mejor OCR
-            const vpLey = page.getViewport({ scale: 3.0 });
-            const cvLey = document.createElement('canvas');
-            cvLey.width = vpLey.width;
-            cvLey.height = vpLey.height;
-            const ctxLey = cvLey.getContext('2d')!;
-            ctxLey.fillStyle = '#fff';
-            ctxLey.fillRect(0, 0, cvLey.width, cvLey.height);
-            await page.render({ canvasContext: ctxLey, viewport: vpLey } as any)
+            // Renderizar la página completa a escala 2.5
+            const vp = page.getViewport({ scale: 2.5 });
+            const cvPagina = document.createElement('canvas');
+            cvPagina.width = vp.width;
+            cvPagina.height = vp.height;
+            const ctxP = cvPagina.getContext('2d')!;
+            ctxP.fillStyle = '#fff';
+            ctxP.fillRect(0, 0, cvPagina.width, cvPagina.height);
+            await page.render({ canvasContext: ctxP, viewport: vp } as any)
               .promise;
 
-            // Recortar: tomar solo el 28% inferior donde vive la leyenda
-            const alturaLey = Math.floor(cvLey.height * 0.28);
-            const offsetY = cvLey.height - alturaLey;
+            // ── Cada página tiene 2 gráficas: cortarlas en mitad superior e inferior ──
+            const mitadH = Math.floor(cvPagina.height / 2);
 
-            const cvRecorte = document.createElement('canvas');
-            cvRecorte.width = cvLey.width;
-            cvRecorte.height = alturaLey;
-            const ctxR = cvRecorte.getContext('2d')!;
-            ctxR.fillStyle = '#fff';
-            ctxR.fillRect(0, 0, cvRecorte.width, cvRecorte.height);
-            ctxR.drawImage(
-              cvLey,
-              0,
-              offsetY,
-              cvLey.width,
-              alturaLey,
-              0,
-              0,
-              cvLey.width,
-              alturaLey,
-            );
+            for (let mitad = 0; mitad < 2; mitad++) {
+              const offsetY = mitad * mitadH;
 
-            // Pre-procesar para OCR: aumentar contraste, convertir a escala de grises
-            const imgData = ctxR.getImageData(
-              0,
-              0,
-              cvRecorte.width,
-              cvRecorte.height,
-            );
-            this.preprocesarParaOCR(imgData);
-            ctxR.putImageData(imgData, 0, 0);
+              // Imagen completa de la gráfica (para el Excel)
+              const cvGrafica = document.createElement('canvas');
+              cvGrafica.width = cvPagina.width;
+              cvGrafica.height = mitadH;
+              const ctxG = cvGrafica.getContext('2d')!;
+              ctxG.fillStyle = '#fff';
+              ctxG.fillRect(0, 0, cvGrafica.width, cvGrafica.height);
+              ctxG.drawImage(
+                cvPagina,
+                0,
+                offsetY,
+                cvPagina.width,
+                mitadH,
+                0,
+                0,
+                cvPagina.width,
+                mitadH,
+              );
+              const imagenCompleta = cvGrafica.toDataURL('image/jpeg', 0.92);
 
-            const imagenLeyenda = cvRecorte.toDataURL('image/png'); // PNG sin compresión para OCR
+              // Imagen solo de la leyenda (30% inferior de la gráfica individual, para OCR)
+              // La leyenda siempre está en la parte inferior de cada gráfica
+              const alturaLeyenda = Math.floor(mitadH * 0.35); // 35% inferior de cada mitad
+              const offsetLeyenda = mitadH - alturaLeyenda;
 
-            paginas.push({ imagenCompleta, imagenLeyenda });
+              // Renderizar a mayor escala para mejor OCR
+              const vpOCR = page.getViewport({ scale: 4.0 }); // escala alta para OCR
+              const cvOCR = document.createElement('canvas');
+              cvOCR.width = vpOCR.width;
+              cvOCR.height = vpOCR.height;
+              const ctxOCR = cvOCR.getContext('2d')!;
+              ctxOCR.fillStyle = '#fff';
+              ctxOCR.fillRect(0, 0, cvOCR.width, cvOCR.height);
+              await page.render({
+                canvasContext: ctxOCR,
+                viewport: vpOCR,
+              } as any).promise;
+
+              // Escalar offsetY al tamaño de escala 4.0
+              const escala = 4.0 / 2.5;
+              const mitadHOCR = Math.floor(cvOCR.height / 2);
+              const alturaLeyendaOCR = Math.floor(mitadHOCR * 0.35);
+              const offsetYOCR =
+                mitad * mitadHOCR + (mitadHOCR - alturaLeyendaOCR);
+
+              const cvLey = document.createElement('canvas');
+              cvLey.width = cvOCR.width;
+              cvLey.height = alturaLeyendaOCR;
+              const ctxL = cvLey.getContext('2d')!;
+              ctxL.fillStyle = '#fff';
+              ctxL.fillRect(0, 0, cvLey.width, cvLey.height);
+              ctxL.drawImage(
+                cvOCR,
+                0,
+                offsetYOCR,
+                cvOCR.width,
+                alturaLeyendaOCR,
+                0,
+                0,
+                cvLey.width,
+                alturaLeyendaOCR,
+              );
+
+              // Pre-procesar para OCR
+              const imgData = ctxL.getImageData(
+                0,
+                0,
+                cvLey.width,
+                cvLey.height,
+              );
+              this.preprocesarParaOCR(imgData);
+              ctxL.putImageData(imgData, 0, 0);
+
+              const imagenLeyenda = cvLey.toDataURL('image/png');
+
+              graficas.push({ imagenCompleta, imagenLeyenda });
+            }
           }
 
-          resolve(paginas);
+          resolve(graficas);
         } catch (err) {
           reject(err);
         }
@@ -479,17 +508,10 @@ export class AnalisisPage {
     });
   }
 
-  /**
-   * Pre-procesa los píxeles para mejorar el OCR:
-   * - Convierte a escala de grises
-   * - Aplica umbral (threshold): píxeles claros → blanco, oscuros → negro
-   * Esto elimina colores de los íconos/leyenda y deja solo el texto nítido.
-   */
   private preprocesarParaOCR(imgData: ImageData): void {
     const d = imgData.data;
     for (let i = 0; i < d.length; i += 4) {
       const gris = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-      // Umbral 160: píxeles grises medios → blanco (elimina fondos de color de leyenda)
       const val = gris > 160 ? 255 : 0;
       d[i] = d[i + 1] = d[i + 2] = val;
       d[i + 3] = 255;
@@ -504,8 +526,7 @@ export class AnalisisPage {
     try {
       const worker = await Tesseract.createWorker('spa');
       await worker.setParameters({
-        tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK, // leyenda = bloque uniforme
-        // Solo permitir caracteres relevantes: letras, números, espacios, comas, puntos, %,  :, (,  )
+        tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
         tessedit_char_whitelist:
           'ABCDEFGHIJKLMNÑOPQRSTUVWXYZabcdefghijklmnñopqrstuvwxyz0123456789 .,():%',
       });
@@ -519,25 +540,11 @@ export class AnalisisPage {
     }
   }
 
-  /**
-   * PARSER ROBUSTO
-   *
-   * Busca cada categoría con su propio regex que captura:
-   *   ETIQUETA ... CANTIDAD (PORCENTAJE%)
-   *
-   * Reglas de validación post-parseo:
-   *  1. Los porcentajes deben sumar entre 95% y 105% (margen de redondeo OCR)
-   *  2. El total (suma de cantidades) debe ser > 0
-   *  3. Si la validación falla → datoVacio()
-   */
   private parsearLeyenda(texto: string): DatosLikert {
-    // Normalizar texto OCR
     const t = texto.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
 
-    // Regex por categoría — busca la etiqueta seguida (con hasta 80 chars de ruido)
-    // del par  NUMERO (NUMERO%)
     const NUM = String.raw`(\d[\d.,]*)`;
-    const GAP = String.raw`[^()]{0,80}?`; // hasta 80 chars que no sean paréntesis
+    const GAP = String.raw`[^()]{0,80}?`;
     const PORC = String.raw`\(\s*(\d[\d.,]*)\s*%\s*\)`;
 
     const buscar = (re: RegExp): { cant: number; porc: number } | null => {
@@ -548,7 +555,6 @@ export class AnalisisPage {
       return isNaN(cant) || isNaN(porc) || cant <= 0 ? null : { cant, porc };
     };
 
-    // Orden de búsqueda: de más específico a menos específico
     const mTA = buscar(
       new RegExp(`totalmente\\s+de\\s+acuerdo${GAP}${NUM}\\s*${PORC}`, 'i'),
     );
@@ -558,14 +564,12 @@ export class AnalisisPage {
     const mN = buscar(
       new RegExp(`ni\\s+de\\s+acuerdo${GAP}${NUM}\\s*${PORC}`, 'i'),
     );
-    // "De acuerdo" sin "totalmente" antes
     const mA = buscar(
       new RegExp(
         `(?<!totalmente\\s{0,10})de\\s+acuerdo${GAP}${NUM}\\s*${PORC}`,
         'i',
       ),
     );
-    // "En desacuerdo" sin "totalmente" antes
     const mD = buscar(
       new RegExp(
         `(?<!totalmente\\s{0,10})en\\s+desacuerdo${GAP}${NUM}\\s*${PORC}`,
@@ -589,9 +593,6 @@ export class AnalisisPage {
     const sumaPorcs = ta + a + n + d + td;
     const encontrados = [mTA, mA, mN, mD, mTD].filter(Boolean).length;
 
-    // ── Validación de coherencia ──────────────────────────────────────────────
-    // Si los porcentajes no suman ~100% o no hay suficientes categorías,
-    // intentamos el fallback posicional antes de devolver vacío
     if (total <= 0 || encontrados < 3 || sumaPorcs < 85 || sumaPorcs > 115) {
       return this.parsearFallback(t);
     }
@@ -599,15 +600,6 @@ export class AnalisisPage {
     return { ta, cantTa, a, cantA, n, cantN, d, cantD, td, cantTd, total };
   }
 
-  /**
-   * FALLBACK POSICIONAL
-   *
-   * Cuando el OCR no reconoce bien las etiquetas, tomamos TODOS los pares
-   * NUMERO (NUMERO%) del texto y elegimos el conjunto de 5 consecutivos
-   * cuya suma de porcentajes esté más cerca de 100%.
-   *
-   * Esto evita que números del título o de los ejes contaminen el resultado.
-   */
   private parsearFallback(texto: string): DatosLikert {
     const patron = /(\d[\d.,]*)\s*\(\s*(\d[\d.,]*)\s*%\s*\)/g;
     const todos: Array<{ cant: number; porc: number }> = [];
@@ -623,7 +615,6 @@ export class AnalisisPage {
 
     if (todos.length < 5) return this.datoVacio();
 
-    // Buscar la ventana de 5 cuya suma de porcentajes sea más cercana a 100
     let mejorIdx = 0;
     let mejorDelta = Infinity;
 
@@ -636,23 +627,22 @@ export class AnalisisPage {
       }
     }
 
-    // Rechazar si la mejor ventana está muy lejos de 100%
     if (mejorDelta > 20) return this.datoVacio();
 
-    const [mTA, mA, mN, mD, mTD] = todos.slice(mejorIdx, mejorIdx + 5);
-    const total = Math.round(mTA.cant + mA.cant + mN.cant + mD.cant + mTD.cant);
+    const [t0, t1, t2, t3, t4] = todos.slice(mejorIdx, mejorIdx + 5);
+    const total = Math.round(t0.cant + t1.cant + t2.cant + t3.cant + t4.cant);
 
     return {
-      ta: mTA.porc,
-      cantTa: mTA.cant,
-      a: mA.porc,
-      cantA: mA.cant,
-      n: mN.porc,
-      cantN: mN.cant,
-      d: mD.porc,
-      cantD: mD.cant,
-      td: mTD.porc,
-      cantTd: mTD.cant,
+      ta: t0.porc,
+      cantTa: t0.cant,
+      a: t1.porc,
+      cantA: t1.cant,
+      n: t2.porc,
+      cantN: t2.cant,
+      d: t3.porc,
+      cantD: t3.cant,
+      td: t4.porc,
+      cantTd: t4.cant,
       total,
     };
   }
@@ -712,7 +702,6 @@ export class AnalisisPage {
     );
   }
 
-  /** Largest Remainder (Hamilton): suma de enteros == total exacto */
   private ajustarRedondeo(porcentajes: number[], total: number): number[] {
     if (total <= 0) return porcentajes.map(() => 0);
     const exactos = porcentajes.map((p) => (p / 100) * total);
@@ -803,7 +792,7 @@ export class AnalisisPage {
       };
     });
 
-    // Fila 2: subcabecera poblaciones
+    // Fila 2: subcabecera
     const sub = sheet.addRow([
       '',
       '',
@@ -893,9 +882,9 @@ export class AnalisisPage {
         });
       };
 
-      if (imgG[i]) insertImg(imgG[i], 3);
-      if (imgE[i]) insertImg(imgE[i], 4);
-      if (imgC[i]) insertImg(imgC[i], 7);
+      if (imgG[i]) insertImg(imgG[i], 3); // col C
+      if (imgE[i]) insertImg(imgE[i], 4); // col D
+      if (imgC[i]) insertImg(imgC[i], 7); // col G
     }
 
     // Descarga
